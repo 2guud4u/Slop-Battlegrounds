@@ -80,3 +80,8 @@ internal/image/      gemini, cloudflare, pollinations, picsum-mock (game.Imager)
 internal/server/     websocket hub, room registry, provider wiring
 web/                 vite + react + ts client
 ```
+need llm to draft scenario
+need image generation
+need different card prompts
+need structure
+need a way not have users wait forever
