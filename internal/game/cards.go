@@ -1,0 +1,67 @@
+package game
+
+// Word pools mined from the Cards Against Humanity corpus (CC BY-NC-SA),
+// filtered to short phrases and hand-merged with the original list.
+
+var adjectivePool = []string{
+	"Slimy", "Turbo", "Emo", "Disco",
+	"Crusty", "Quantum", "Radioactive", "Soggy",
+	"Vegan", "Explosive", "Depressed", "Cyber",
+	"Haunted", "Ferocious", "Bureaucratic", "Inflatable",
+	"Ancient", "Sentient", "Microwaved", "Absolute",
+	"Crypto", "Nuclear", "Feral", "Weird",
+	"Strange", "Sweaty", "Iron", "Ugly",
+	"Crazy", "Cunning", "Gold", "Badass",
+	"Rainbow", "Erotic", "Disappointing", "Gravitational",
+	"Galactic", "Friendly", "Pointy", "Wild",
+	"Flaming", "Bloody", "Spontaneous",
+}
+
+var nounPool = []string{
+	"Grandma", "Wizard", "Hamster", "Tax Auditor",
+	"Dumpster", "Dragon", "Intern", "Clown",
+	"Skateboard", "Toaster", "Warlord", "Pigeon",
+	"Roomba", "Chupacabra", "Librarian", "CEO",
+	"Mushroom", "Submarine", "Scarecrow", "Cryptobro",
+	"Lawn Gnome", "Bouncer", "Kebab", "God",
+	"Monster", "Sword", "Monkey", "Gag Reflex",
+	"Bomb", "Massage", "Unicorn", "Disaster",
+	"Banana", "Potion", "Llama", "Handshake",
+	"Union", "High Five", "Boss", "Council",
+	"Illuminati", "Internet", "Biscuit", "Stripper",
+	"Podcast", "Complex", "Godmother", "Bunny",
+	"Fairy", "Machine", "Ninja", "Dutchman",
+	"Universe", "Ticking Noise", "Squid", "Hooker",
+	"Teacher", "Engineer", "Sandwich", "Strangler",
+	"Killer", "Black Hole", "Wendigo", "Pineapple",
+	"Bubble", "Raid", "Convention", "Butthole",
+	"Mistake", "Toilet", "Boyfriend", "Cow",
+	"Beard", "Epidemic",
+}
+
+var verbPool = []string{
+	"summons a lightning storm", "dabs menacingly", "files a restraining order", "unleashes a bass drop",
+	"hacks the mainframe", "cries uncontrollably", "transforms into a monster truck", "starts a pyramid scheme",
+	"dodges like the Matrix", "calls in an airstrike", "offers a firm handshake", "goes full berserker mode",
+	"deploys a smoke screen", "chugs a gallon of milk", "casts a silence spell", "files for bankruptcy",
+	"awakens an ancient curse", "breaks the fourth wall", "fishing for compliments", "turning it off and on again",
+	"being fabulous", "being on fire", "running away with the circus", "flying under the influence",
+	"doing the right thing", "eating floating cupcakes", "reading thousands of books", "watching dragons breed",
+	"wearing a miniskirt", "being a dinosaur", "dancing on the ceiling", "becoming minister for magic",
+	"being up a troll's arse", "having a beautiful wand", "losing your glasses", "talking pictures",
+	"having gorgeous hair", "eating to feel better", "getting ripped apart by vampires", "slapping your partner across the face",
+	"eating apples from a stranger", "getting freaky on a friday", "getting your lions crossed", "playing cards against your childhood",
+	"pretending to be a man", "pulling the wrong lever", "making deals", "sleeping on the couch",
+	"stealing samples from the hospital", "being chased by goblins", "being nice to chipmunks", "being thick with nectar",
+	"destroying the economy", "destroying the outdoors", "finding a date on craigslist", "punching mimes",
+	"screaming at inanimate objects", "slapping the monkey", "smoking three packs a day", "talking baby movies",
+	"wearing a pink fedora", "drinking, fencing, swearing, quarrelling", "drinking your troubles away nightly", "fighting over the remote control",
+	"finding out you're actually cousins", "finding your soul mate", "forgetting your anniversary, year after year", "getting a dog",
+	"getting tired of being on top", "pretending you were just kidding", "staying up all night talking", "taking things too literally",
+	"talking dirty in a spanish accent", "texting instead of talking", "unleashing the vixen within", "wishing this moment could last forever",
+	"being completely unemployable", "being passively-aggressive on social media", "burning in adulthood hell", "climbing a mountain",
+	"eating anxiety sandwiches", "eating nutella for breakfast", "eating squirrels", "eating sushi in a dance pit",
+	"finding my keys", "getting turnt up", "having my credit card declined", "hunting unicorns in alaska",
+	"inventing new curse words", "making a shameless knockoff card game", "putting on a serious voice", "putting on pants before noon",
+	"saying no to drugs", "saying yes to drugs", "screaming at my barista",
+}

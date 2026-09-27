@@ -1,0 +1,6 @@
+web/node_modules/
+web/dist/
+slop-battlegrounds
+*.log
+*.tsbuildinfo
+.DS_Store
