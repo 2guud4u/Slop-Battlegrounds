@@ -21,11 +21,12 @@ import (
 // Defaults holds server-level provider config (from env). Per-room host keys
 // override these.
 type Defaults struct {
-	GroqKey     string
-	GeminiKey   string
-	CFAccountID string
-	CFToken     string
-	GenDir      string // where generated images are written
+	GroqKey         string
+	GeminiKey       string
+	CFAccountID     string
+	CFToken         string
+	PollinationsKey string
+	GenDir          string // where generated images are written
 }
 
 // JoinMsg is the first message a client must send on the socket.
@@ -83,9 +84,10 @@ func (h *Hub) serveWS(w http.ResponseWriter, r *http.Request) {
 	conn.SetReadLimit(wsReadLimit)
 	ctx := r.Context()
 
+	t0 := time.Now()
 	var jm JoinMsg
-	if err := wsjson.Read(ctx, conn, &jm); err != nil || jm.Type != "join" || jm.Name == "" {
-		_ = wsjson.Write(ctx, conn, game.ClientMsg{Type: "error", Message: "expected join {name, room?}"})
+	if err := wsjson.Read(ctx, conn, &jm); err != nil || jm.Type != "join" {
+		_ = wsjson.Write(ctx, conn, game.ClientMsg{Type: "error", Message: "expected join {room?}"})
 		conn.Close(websocket.StatusProtocolError, "bad join")
 		return
 	}
@@ -95,8 +97,10 @@ func (h *Hub) serveWS(w http.ResponseWriter, r *http.Request) {
 		conn.Close(websocket.StatusProtocolError, err.Error())
 		return
 	}
-	c := &wsClient{conn: conn, ctx: ctx}
+	c := newWSClient(conn, ctx)
+	go c.pump()
 	playerID, err := room.Join(jm.Name, jm.Avatar, c)
+	log.Printf("room %s: %s joined in %v", room.Code, jm.Name, time.Since(t0))
 	if err != nil {
 		_ = wsjson.Write(ctx, conn, game.ClientMsg{Type: "error", Message: err.Error()})
 		conn.Close(websocket.StatusProtocolError, err.Error())
@@ -104,6 +108,7 @@ func (h *Hub) serveWS(w http.ResponseWriter, r *http.Request) {
 	}
 	defer func() {
 		room.Leave(playerID)
+		c.close()
 		conn.Close(websocket.StatusNormalClosure, "bye")
 	}()
 
@@ -128,6 +133,7 @@ func (h *Hub) room(jm JoinMsg) (*game.Room, error) {
 		return nil, fmt.Errorf("room %q not found", jm.Room)
 	}
 	code := newCode(h.rooms)
+	log.Printf("creating room %s for host %q…", code, jm.Name)
 	judge := resolveJudge(jm, h.def)
 	imager := resolveImager(jm, h.def)
 	rm := game.New(code, judge, imager)
@@ -175,7 +181,7 @@ func resolveImager(jm JoinMsg, def Defaults) game.Imager {
 	case "mock":
 		return imagegen.Mock{}
 	case "pollinations":
-		return imagegen.Pollinations{}
+		return imagegen.Pollinations{Key: def.PollinationsKey}
 	case "cloudflare":
 		if account != "" && token != "" {
 			return imagegen.NewCloudflare(account, token, def.GenDir, "/gen/")
@@ -186,14 +192,8 @@ func resolveImager(jm JoinMsg, def Defaults) game.Imager {
 			return imagegen.NewGemini(gkey, def.GenDir, "/gen/")
 		}
 		return imagegen.Mock{}
-	default: // auto: gemini (single key) → cloudflare → placeholder
-		if gkey != "" {
-			return imagegen.NewGemini(gkey, def.GenDir, "/gen/")
-		}
-		if account != "" && token != "" {
-			return imagegen.NewCloudflare(account, token, def.GenDir, "/gen/")
-		}
-		return imagegen.Mock{}
+	default: // auto: pollinations — free tier, needs POLLINATION_API_KEY
+		return imagegen.Pollinations{Key: def.PollinationsKey}
 	}
 }
 
@@ -211,20 +211,91 @@ func newCode(rooms map[string]*game.Room) string {
 	return fmt.Sprintf("r%d", time.Now().UnixNano())
 }
 
-// wsClient adapts a websocket conn to game.Client. Writes are serialized
-// per connection (wsjson.Write is not safe for concurrent use).
-type wsClient struct {
-	mu   sync.Mutex
-	conn *websocket.Conn
-	ctx  context.Context
+// wsClient adapts a websocket conn to game.Client. Sends go through a
+// buffered queue + pump goroutine so a stalled client can never hold the
+// room's mutex mid-broadcast. wsjson.Write is not safe for concurrent use —
+// only the pump writes.
+type queuedMsg struct {
+	v         any
+	droppable bool // state snapshots can be skipped; errors cannot
 }
 
+type wsClient struct {
+	conn *websocket.Conn
+	ctx  context.Context
+	ch   chan queuedMsg
+	done chan struct{}
+}
+
+const sendQueue = 32
+
+func newWSClient(conn *websocket.Conn, ctx context.Context) *wsClient {
+	return &wsClient{conn: conn, ctx: ctx, ch: make(chan queuedMsg, sendQueue), done: make(chan struct{})}
+}
+
+// SendJSON never blocks: it enqueues, or drops a stale state if the client
+// is behind. Errors always attempt delivery first.
 func (c *wsClient) SendJSON(v any) error {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	err := wsjson.Write(c.ctx, c.conn, v)
-	if err != nil {
-		log.Printf("send to client failed: %v", err)
+	q := queuedMsg{v: v, droppable: true}
+	if cm, ok := v.(game.ClientMsg); ok && cm.Type == "error" {
+		q.droppable = false // errors must reach the client
 	}
-	return err
+	select {
+	case c.ch <- q:
+		return nil
+	default:
+	}
+	// Queue full: drop the oldest droppable snapshot and retry once.
+	var keep []queuedMsg
+	for {
+		select {
+		case old := <-c.ch:
+			if !old.droppable {
+				keep = append(keep, old)
+				continue
+			}
+			goto evicted
+		default:
+			goto full
+		}
+	}
+evicted:
+	for _, m := range keep {
+		c.ch <- m
+	}
+	c.ch <- q
+	return nil
+full:
+	for _, m := range keep {
+		c.ch <- m
+	}
+	c.close() // client can't keep up — cut it loose
+	return nil
+}
+
+// pump writes queued messages until the client closes.
+func (c *wsClient) pump() {
+	for {
+		select {
+		case <-c.done:
+			return
+		case q := <-c.ch:
+			ctx, cancel := context.WithTimeout(c.ctx, 5*time.Second)
+			err := wsjson.Write(ctx, c.conn, q.v)
+			cancel()
+			if err != nil {
+				log.Printf("send to client failed: %v", err)
+				c.close()
+				return
+			}
+		}
+	}
+}
+
+func (c *wsClient) close() {
+	select {
+	case <-c.done:
+	default:
+		close(c.done)
+	}
 }

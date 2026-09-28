@@ -12,9 +12,17 @@ var adjectivePool = []string{
 	"Crypto", "Nuclear", "Feral", "Weird",
 	"Strange", "Sweaty", "Iron", "Ugly",
 	"Crazy", "Cunning", "Gold", "Badass",
-	"Rainbow", "Erotic", "Disappointing", "Gravitational",
+	"Rainbow", "Disappointing", "Gravitational",
 	"Galactic", "Friendly", "Pointy", "Wild",
 	"Flaming", "Bloody", "Spontaneous",
+	"Suspicious", "Moist", "Illegal", "Premium",
+	"Discount", "Unhinged", "Melancholy", "Frostbitten",
+	"Anxious", "Deluxe", "Suspiciously Quiet", "Regal",
+	"Gaslit", "Bioengineered", "Peasant", "Mythic",
+	"Disgruntled", "Gluten-Free", "Possessed", "Unlicensed",
+	"Abandoned", "Vegan-Friendly", "Levitating", "Cowardly",
+	"Steampunk", "Cardboard", "Left-Handed", "Underwater",
+	"Two-Faced", "Vindictive", "Moisturized", "Baroque",
 }
 
 var nounPool = []string{
@@ -28,40 +36,101 @@ var nounPool = []string{
 	"Bomb", "Massage", "Unicorn", "Disaster",
 	"Banana", "Potion", "Llama", "Handshake",
 	"Union", "High Five", "Boss", "Council",
-	"Illuminati", "Internet", "Biscuit", "Stripper",
+	"Illuminati", "Internet", "Biscuit",
 	"Podcast", "Complex", "Godmother", "Bunny",
 	"Fairy", "Machine", "Ninja", "Dutchman",
 	"Universe", "Ticking Noise", "Squid", "Hooker",
 	"Teacher", "Engineer", "Sandwich", "Strangler",
 	"Killer", "Black Hole", "Wendigo", "Pineapple",
-	"Bubble", "Raid", "Convention", "Butthole",
+	"Bubble", "Raid", "Convention",
 	"Mistake", "Toilet", "Boyfriend", "Cow",
 	"Beard", "Epidemic",
+	"Ambulance", "Chiropractor", "Vending Machine", "Ghost Writer",
+	"Side Quest", "Landlord", "Cult Leader", "Fanny Pack",
+	"Steam Engine", "Rotisserie Chicken", "Taxidermist", "Food Coma",
+	"Perpetual Motion", "Gym Teacher", "Final Boss", "Karaoke Machine",
+	"Second Cousin", "Meatball", "Charity Gala", "Time Machine",
+	"Bad Wi-Fi", "Alley Cat", "Day Spa", "Haunted Fridge",
+	"Librarian Ghost", "Parking Ticket", "Mall Santa", "Job Interview",
+	"Existential Dread", "Submarine Sandwich", "Old Gods", "Mini Fridge",
+	"Thunderdome", "Farmers Market", "Retirement Plan", "Lawsuit",
+	"Space Elevator", "Leftovers", "Cryptid", "Gym Membership",
 }
 
 var verbPool = []string{
-	"summons a lightning storm", "dabs menacingly", "files a restraining order", "unleashes a bass drop",
-	"hacks the mainframe", "cries uncontrollably", "transforms into a monster truck", "starts a pyramid scheme",
-	"dodges like the Matrix", "calls in an airstrike", "offers a firm handshake", "goes full berserker mode",
-	"deploys a smoke screen", "chugs a gallon of milk", "casts a silence spell", "files for bankruptcy",
-	"awakens an ancient curse", "breaks the fourth wall", "fishing for compliments", "turning it off and on again",
-	"being fabulous", "being on fire", "running away with the circus", "flying under the influence",
-	"doing the right thing", "eating floating cupcakes", "reading thousands of books", "watching dragons breed",
-	"wearing a miniskirt", "being a dinosaur", "dancing on the ceiling", "becoming minister for magic",
-	"being up a troll's arse", "having a beautiful wand", "losing your glasses", "talking pictures",
-	"having gorgeous hair", "eating to feel better", "getting ripped apart by vampires", "slapping your partner across the face",
-	"eating apples from a stranger", "getting freaky on a friday", "getting your lions crossed", "playing cards against your childhood",
-	"pretending to be a man", "pulling the wrong lever", "making deals", "sleeping on the couch",
-	"stealing samples from the hospital", "being chased by goblins", "being nice to chipmunks", "being thick with nectar",
-	"destroying the economy", "destroying the outdoors", "finding a date on craigslist", "punching mimes",
-	"screaming at inanimate objects", "slapping the monkey", "smoking three packs a day", "talking baby movies",
-	"wearing a pink fedora", "drinking, fencing, swearing, quarrelling", "drinking your troubles away nightly", "fighting over the remote control",
-	"finding out you're actually cousins", "finding your soul mate", "forgetting your anniversary, year after year", "getting a dog",
-	"getting tired of being on top", "pretending you were just kidding", "staying up all night talking", "taking things too literally",
-	"talking dirty in a spanish accent", "texting instead of talking", "unleashing the vixen within", "wishing this moment could last forever",
-	"being completely unemployable", "being passively-aggressive on social media", "burning in adulthood hell", "climbing a mountain",
-	"eating anxiety sandwiches", "eating nutella for breakfast", "eating squirrels", "eating sushi in a dance pit",
-	"finding my keys", "getting turnt up", "having my credit card declined", "hunting unicorns in alaska",
-	"inventing new curse words", "making a shameless knockoff card game", "putting on a serious voice", "putting on pants before noon",
-	"saying no to drugs", "saying yes to drugs", "screaming at my barista",
+	// combat — the lethal kind
+	"summons a lightning storm", "unleashes a bass drop", "hacks the mainframe", "calls in an airstrike",
+	"deploys a smoke screen", "casts a silence spell", "awakens an ancient curse", "goes full berserker mode",
+	"transforms into a monster truck", "dodges like the Matrix", "charges a laser cannon", "detonates a glitter bomb",
+	"banishes the opponent to the shadow realm", "summons a pack of wolves", "shapeshifts into a vending machine", "hurls a bowl of hot soup",
+	"throws a suplex into the center of the earth", "grows fifty feet tall", "hiccups fireballs", "swings a ceremonial halibut",
+	"activates a pocket-sized black hole", "summons a legal team", "dives through a plate-glass window", "enrages into super saiyan mode",
+	// absurd CAH energy, still actions
+	"dabs menacingly", "cries uncontrollably", "offers a firm handshake", "starts a pyramid scheme",
+	"files a restraining order", "files for bankruptcy", "chugs a gallon of milk", "breaks the fourth wall",
+	"turns it off and on again", "runs away with the circus", "screams at inanimate objects", "punches a mime",
+	"weaponizes a pink fedora", "invents new curse words", "puts on a serious voice", "puts on pants mid-fight",
+	"eats anxiety sandwiches", "hunts unicorns mid-brawl", "chugs three energy drinks", "deploys a feral Roomba",
+	// wildcard
+	"duplicates into a hundred copies", "throws a folding chair", "bites through the armor", "spawns a portal directly underneath",
+	"dropkicks the opponent's pelvis", "shouts the forbidden word", "launches a rocket-powered fist", "hurls a thunderbolt",
+	"folds the opponent into a paper airplane", "whips out nunchucks made of sausages", "farts hard enough to launch upward",
+	"weaponizes a hug", "time-travels five seconds into the future", "inhales the opponent's attack", "roundhouse-kicks the planet off its axis",
+}
+
+// Single-word pools for forge cards — the arena stays on verbPool above.
+var verbCardPool = []string{
+	"Yeets", "Suplexes", "Summons", "Hacks", "Devours",
+	"Banishes", "Wields", "Obliterates", "Snacks On", "Judges",
+	"Landslides", "Duplicates", "Teriyaki-Grills", "Repossesses", "Sunbathes",
+	"Therapy-Hugs", "DJ-Spins", "Dabs On", "Berserks", "Files",
+}
+
+var adverbPool = []string{
+	"Ruthlessly", "Suspiciously", "Violently", "Gently", "Horizontally",
+	"Forever", "Barely", "Aggressively", "Yesterday", "Underhandedly",
+	"Seductively", "Somewhat", "Metaphysically", "Recklessly", "Politely",
+}
+
+var pronounPool = []string{
+	"He", "She", "They", "It", "One",
+	"Someone", "Everything", "Whoever", "Ye", "Nobody",
+}
+
+var prepositionPool = []string{
+	"in", "on", "under", "inside", "between",
+	"behind", "beyond", "through", "without", "upon",
+	"despite", "among", "beneath", "within", "outside",
+}
+
+var conjunctionPool = []string{
+	"and", "but", "or", "yet", "so",
+	"while", "nor", "because", "tho", "versus",
+}
+
+// cardPools maps every drawable kind to its word pool.
+var cardPools = map[string][]string{
+	KindAdj:  adjectivePool,
+	KindNoun: nounPool,
+	KindVerb: verbCardPool,
+	KindAdv:  adverbPool,
+	KindPron: pronounPool,
+	KindPrep: prepositionPool,
+	KindConj: conjunctionPool,
+}
+
+// battlegroundPool: locations voted on during draft.
+var battlegroundPool = []string{
+	"an active volcano rim",
+	"a flooded shopping mall",
+	"the moon landing set",
+	"inside a giant washing machine",
+	"a medieval jousting arena",
+	"a sinking pirate ship",
+	"an abandoned amusement park",
+	"a den of sleeping dragons",
+	"the produce aisle at 3am",
+	"a collapsing skyscraper rooftop",
+	"inside a whirlpool",
+	"a spaghetti western ghost town",
 }

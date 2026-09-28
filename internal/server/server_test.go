@@ -41,16 +41,31 @@ type stateMsg struct {
 	} `json:"bets"`
 	Fight *struct {
 		A struct {
-			PlayerID string   `json:"playerId"`
-			Verbs    []string `json:"verbs"`
+			PlayerID string `json:"playerId"`
+			Moves    []struct {
+				Verb string `json:"verb"`
+			} `json:"moves"`
 		} `json:"a"`
 		B struct {
-			PlayerID string   `json:"playerId"`
-			Verbs    []string `json:"verbs"`
+			PlayerID string `json:"playerId"`
+			Moves    []struct {
+				Verb string `json:"verb"`
+			} `json:"moves"`
 		} `json:"b"`
-		Verdict *game.Verdict `json:"verdict"`
+		Location  string            `json:"location"`
+		Scene     string            `json:"scene"`
+		Round     int               `json:"round"`
+		Resolving bool              `json:"resolving"`
+		Events    []game.RoundEvent `json:"events"`
+		Draw      bool              `json:"draw"`
+		MyOptions []string          `json:"myOptions"`
+		Verdict   *game.Verdict     `json:"verdict"`
 	} `json:"fight"`
-	Hand []game.Card `json:"hand"`
+	LocOptions []string             `json:"locOptions"`
+	Hand       []game.Card          `json:"hand"`
+	Templates  []game.ForgeTemplate `json:"templates"`
+	Shop       []game.ForgeTemplate `json:"shop"`
+	ShopTurn   string               `json:"shopTurn"`
 }
 
 func dial(t *testing.T, url string, join JoinMsg) *testClient {
@@ -136,7 +151,7 @@ func TestFullGameLoop(t *testing.T) {
 	if room == "" {
 		t.Fatal("no room code")
 	}
-	if len(pickCards(s.Hand, game.KindAdj)) == 0 || len(pickCards(s.Hand, game.KindVerb)) == 0 {
+	if len(pickCards(s.Hand, game.KindAdj)) == 0 || len(pickCards(s.Hand, game.KindNoun)) == 0 {
 		t.Fatal("no hand dealt")
 	}
 
@@ -151,8 +166,8 @@ func TestFullGameLoop(t *testing.T) {
 	s2 := c2.wait(func(m stateMsg) bool { return m.Phase == game.PhaseDraft })
 
 	// Both draft champions.
-	c1.send(game.ClientMsg{Type: "draft", Adj: pickCards(s1.Hand, game.KindAdj)[0], Noun: pickCards(s1.Hand, game.KindNoun)[0]})
-	c2.send(game.ClientMsg{Type: "draft", Adj: pickCards(s2.Hand, game.KindAdj)[0], Noun: pickCards(s2.Hand, game.KindNoun)[0]})
+	c1.send(game.ClientMsg{Type: "draft", Template: "adj_noun", Cards: []string{pickCards(s1.Hand, game.KindAdj)[0], pickCards(s1.Hand, game.KindNoun)[0]}})
+	c2.send(game.ClientMsg{Type: "draft", Template: "adj_noun", Cards: []string{pickCards(s2.Hand, game.KindAdj)[0], pickCards(s2.Hand, game.KindNoun)[0]}})
 
 	// 2 players → betting skipped → combat.
 	s1 = c1.wait(func(m stateMsg) bool { return m.Phase == game.PhaseCombat })
@@ -161,22 +176,25 @@ func TestFullGameLoop(t *testing.T) {
 		t.Fatal("no fight in combat phase")
 	}
 
-	// Each fighter plays 2 verbs.
-	for i := 0; i < 2; i++ {
-		c1.send(game.ClientMsg{Type: "verb", Verb: pickCards(s1.Hand, game.KindVerb)[i]})
-		c2.send(game.ClientMsg{Type: "verb", Verb: pickCards(s2.Hand, game.KindVerb)[i]})
-	}
+	// Combat: wait for LLM options, then P1 picks one and P2 lets fate
+	// decide — mock judge calls it on round 1 (lopsided) → early verdict.
+	s1 = c1.wait(func(m stateMsg) bool {
+		return m.Phase == game.PhaseCombat && m.Fight != nil && len(m.Fight.MyOptions) > 0
+	})
+	time.Sleep(6200 * time.Millisecond) // reveal + bell countdown
+	c1.send(game.ClientMsg{Type: "verb", Verb: s1.Fight.MyOptions[0]})
+	c2.send(game.ClientMsg{Type: "pass"})
 
 	// Mock judge resolves → verdict.
 	s1 = c1.wait(func(m stateMsg) bool {
 		return m.Phase == game.PhaseVerdict && m.Fight != nil && m.Fight.Verdict != nil
 	})
 	v := s1.Fight.Verdict
-	if v.WinnerID != s1.Fight.A.PlayerID && v.WinnerID != s1.Fight.B.PlayerID {
-		t.Fatalf("bad winner id %q", v.WinnerID)
+	if v.WinnerID != s1.Fight.A.PlayerID {
+		t.Fatalf("winner = %q, want %q (the fighter who acted)", v.WinnerID, s1.Fight.A.PlayerID)
 	}
-	if len(v.Events) == 0 {
-		t.Fatal("no events narrated")
+	if len(s1.Fight.Events) == 0 {
+		t.Fatal("no round events narrated")
 	}
 
 	// Payout: winner +25, loser +20.
@@ -195,14 +213,54 @@ func TestFullGameLoop(t *testing.T) {
 		t.Fatalf("loser coins = %d, want 120", coins[loser])
 	}
 
-	// Host advances → next draft with a topped-up hand.
-	c1.send(game.ClientMsg{Type: "next"})
-	s1 = c1.wait(func(m stateMsg) bool { return m.Phase == game.PhaseDraft })
-	if s1.Round != 2 {
-		t.Fatalf("round = %d, want 2", s1.Round)
+	// Everyone must pass the verdict before the shop opens.
+	c1.send(game.ClientMsg{Type: "pass"})
+	c2.send(game.ClientMsg{Type: "pass"})
+	s1 = c1.wait(func(m stateMsg) bool { return m.Phase == game.PhaseShop })
+	if len(s1.Shop) == 0 {
+		t.Fatal("no shop catalog in shop phase")
 	}
-	if len(pickCards(s1.Hand, game.KindAdj)) != 4 || len(pickCards(s1.Hand, game.KindVerb)) != 3 {
-		t.Fatalf("hand not topped up: %+v", s1.Hand)
+	if len(s1.Templates) != 3 {
+		t.Fatalf("starter templates = %d, want 3", len(s1.Templates))
+	}
+	s2shop := c2.wait(func(m stateMsg) bool { return m.Phase == game.PhaseShop })
+	// Serial shop: fewest wins shops first — that's the verdict loser.
+	shopC, otherC := c1, c2
+	shopS, otherS := s1, s2shop
+	if s1.You == v.WinnerID {
+		shopC, otherC = c2, c1
+		shopS, otherS = s2shop, s1
+	}
+	if shopS.ShopTurn != shopS.You {
+		t.Fatalf("first shop turn = %q, want loser %q", shopS.ShopTurn, shopS.You)
+	}
+	// Loser (105 coins) buys the 45-coin noun_with_adj_noun template.
+	shopC.send(game.ClientMsg{Type: "buy", Template: "noun_with_adj_noun"})
+	bs := shopC.wait(func(m stateMsg) bool { return len(m.Templates) == 4 })
+	var me struct {
+		ID       string         `json:"id"`
+		Coins    int            `json:"coins"`
+		Champion *game.Champion `json:"champion"`
+	}
+	for _, p := range bs.Players {
+		if p.ID == shopS.You {
+			me = p
+		}
+	}
+	if me.Coins != 75 {
+		t.Fatalf("loser coins after buy = %d, want 75 (120-45)", me.Coins)
+	}
+	// Finish both turns: loser passes → winner's turn → winner passes → draft.
+	shopC.send(game.ClientMsg{Type: "pass"})
+	otherC.wait(func(m stateMsg) bool { return m.ShopTurn == otherS.You })
+	otherC.send(game.ClientMsg{Type: "pass"})
+	sd1 := c1.wait(func(m stateMsg) bool { return m.Phase == game.PhaseDraft })
+	if sd1.Round != 2 {
+		t.Fatalf("round = %d, want 2", sd1.Round)
+	}
+	// Hands are finite: no refill — the forged cards are gone for good.
+	if len(sd1.Hand) == 0 {
+		t.Fatal("hand should persist across rounds, minus spent cards")
 	}
 }
 
@@ -226,34 +284,39 @@ func TestBettingWithThreePlayers(t *testing.T) {
 	c1.send(game.ClientMsg{Type: "start"})
 
 	// Everyone drafts.
+	// Draft: the fight is already announced — the two fighters forge, the
+	// spectator's forge is rejected.
 	states := map[string]stateMsg{}
 	for _, c := range []*testClient{c1, c2, c3} {
-		st := c.wait(func(m stateMsg) bool { return m.Phase == game.PhaseDraft })
+		st := c.wait(func(m stateMsg) bool { return m.Phase == game.PhaseDraft && m.Fight != nil })
 		states[st.You] = st
-		c.send(game.ClientMsg{
-			Type: "draft",
-			Adj:  pickCards(st.Hand, game.KindAdj)[0],
-			Noun: pickCards(st.Hand, game.KindNoun)[0],
-		})
 	}
-
-	// Betting phase expected with 3 players.
-	s = c1.wait(func(m stateMsg) bool { return m.Phase == game.PhaseBetting })
-	if s.Fight == nil {
-		t.Fatal("no fight in betting phase")
-	}
-	fighterIDs := map[string]bool{s.Fight.A.PlayerID: true, s.Fight.B.PlayerID: true}
-
-	// The spectator bets 50 on fighter A.
+	fighterIDs := map[string]bool{}
 	var spectator *testClient
 	for _, c := range []*testClient{c1, c2, c3} {
-		if !fighterIDs[c.you] {
+		st := states[c.you]
+		if st.Fight.A.PlayerID == c.you || st.Fight.B.PlayerID == c.you {
+			fighterIDs[c.you] = true
+			c.send(game.ClientMsg{
+				Type: "draft", Template: "adj_noun",
+				Cards: []string{pickCards(st.Hand, game.KindAdj)[0], pickCards(st.Hand, game.KindNoun)[0]},
+			})
+		} else {
 			spectator = c
 		}
 	}
 	if spectator == nil {
 		t.Fatal("no spectator found")
 	}
+
+	// Betting phase expected once both fighters forge.
+	s = c1.wait(func(m stateMsg) bool { return m.Phase == game.PhaseBetting })
+	if s.Fight == nil {
+		t.Fatal("no fight in betting phase")
+	}
+	fighterIDs = map[string]bool{s.Fight.A.PlayerID: true, s.Fight.B.PlayerID: true}
+
+	// The spectator bets 50 on fighter A.
 	spectator.send(game.ClientMsg{Type: "bet", On: s.Fight.A.PlayerID, Amount: 50})
 
 	// Combat begins once all spectators have bet.
@@ -261,6 +324,61 @@ func TestBettingWithThreePlayers(t *testing.T) {
 	for _, p := range s.Players {
 		if p.ID == spectator.you && p.Coins != 50 {
 			t.Fatalf("spectator coins = %d, want 50 after staking 50", p.Coins)
+		}
+	}
+}
+func TestDrawAfterThreeRounds(t *testing.T) {
+	hub := NewHub(Defaults{GenDir: t.TempDir()})
+	srv := httptest.NewServer(hub.Handler(nil))
+	defer srv.Close()
+	wsURL := "ws" + strings.TrimPrefix(srv.URL, "http") + "/ws"
+
+	c1 := dial(t, wsURL, JoinMsg{Name: "alice"})
+	defer c1.close()
+	s := c1.wait(func(m stateMsg) bool { return m.You != "" })
+
+	c2 := dial(t, wsURL, JoinMsg{Name: "bob", Room: s.Room})
+	defer c2.close()
+	c2.wait(func(m stateMsg) bool { return len(m.Players) == 2 })
+
+	c1.send(game.ClientMsg{Type: "start"})
+	s1 := c1.wait(func(m stateMsg) bool { return m.Phase == game.PhaseDraft })
+	s2 := c2.wait(func(m stateMsg) bool { return m.Phase == game.PhaseDraft })
+	c1.send(game.ClientMsg{Type: "draft", Template: "adj_noun", Cards: []string{pickCards(s1.Hand, game.KindAdj)[0], pickCards(s1.Hand, game.KindNoun)[0]}})
+	c2.send(game.ClientMsg{Type: "draft", Template: "adj_noun", Cards: []string{pickCards(s2.Hand, game.KindAdj)[0], pickCards(s2.Hand, game.KindNoun)[0]}})
+
+	c1.wait(func(m stateMsg) bool { return m.Phase == game.PhaseCombat })
+
+	// Both fighters pick real options every round — mock scores a draw.
+	for round := 1; round <= 3; round++ {
+		st1 := c1.wait(func(m stateMsg) bool {
+			return m.Fight != nil && m.Fight.Round == round && !m.Fight.Resolving && len(m.Fight.MyOptions) > 0
+		})
+		st2 := c2.wait(func(m stateMsg) bool {
+			return m.Fight != nil && m.Fight.Round == round && !m.Fight.Resolving && len(m.Fight.MyOptions) > 0
+		})
+		if round == 1 {
+			time.Sleep(6200 * time.Millisecond) // reveal + bell countdown
+		}
+		c1.send(game.ClientMsg{Type: "verb", Verb: st1.Fight.MyOptions[0]})
+		c2.send(game.ClientMsg{Type: "verb", Verb: st2.Fight.MyOptions[0]})
+	}
+
+	s1 = c1.wait(func(m stateMsg) bool {
+		return m.Phase == game.PhaseVerdict && m.Fight != nil && m.Fight.Verdict != nil
+	})
+	if !s1.Fight.Draw {
+		t.Fatal("expected draw flag after 3 undecided rounds")
+	}
+	if s1.Fight.Verdict.WinnerID != "" {
+		t.Fatalf("draw verdict has winner %q", s1.Fight.Verdict.WinnerID)
+	}
+	if len(s1.Fight.Events) != 3 {
+		t.Fatalf("expected 3 round events, got %d", len(s1.Fight.Events))
+	}
+	for _, p := range s1.Players {
+		if p.Coins != 120 {
+			t.Fatalf("player %s coins = %d, want 120 on a draw", p.ID, p.Coins)
 		}
 	}
 }

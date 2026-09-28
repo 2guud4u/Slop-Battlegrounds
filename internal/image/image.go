@@ -37,7 +37,7 @@ func NewCloudflare(account, token, dir, prefix string) *Cloudflare {
 	}
 }
 
-func (c *Cloudflare) Generate(ctx context.Context, prompt string) (string, error) {
+func (c *Cloudflare) Generate(ctx context.Context, prompt, _ string) (string, error) {
 	ep := fmt.Sprintf("https://api.cloudflare.com/client/v4/accounts/%s/ai/run/%s",
 		c.AccountID, url.PathEscape(c.Model))
 	body := fmt.Sprintf(`{"prompt":%q,"steps":4}`, prompt)
@@ -107,7 +107,7 @@ func NewGemini(key, dir, prefix string) *Gemini {
 	}
 }
 
-func (g *Gemini) Generate(ctx context.Context, prompt string) (string, error) {
+func (g *Gemini) Generate(ctx context.Context, prompt, _ string) (string, error) {
 	ep := fmt.Sprintf("https://generativelanguage.googleapis.com/v1beta/models/%s:generateContent",
 		url.PathEscape(g.Model))
 	body := fmt.Sprintf(`{"contents":[{"parts":[{"text":%q}]}],"generationConfig":{"responseModalities":["IMAGE"]}}`, prompt)
@@ -168,18 +168,33 @@ func (g *Gemini) Generate(ctx context.Context, prompt string) (string, error) {
 	return "", fmt.Errorf("gemini: no image in response")
 }
 
-// Pollinations: zero-key URL API. Kept as an opt-in/fallback provider.
-type Pollinations struct{}
+// Pollinations gen API — needs POLLINATION_API_KEY. Returns a URL; when a
+// reference image URL is given (champion portrait) it's passed through so
+// scene/fight art keeps likeness.
+type Pollinations struct {
+	Key string
+}
 
-func (Pollinations) Generate(_ context.Context, prompt string) (string, error) {
-	return fmt.Sprintf("https://image.pollinations.ai/prompt/%s?width=768&height=512&nologo=true&seed=%d",
-		url.PathEscape(prompt), rand.IntN(1<<30)), nil
+func (p Pollinations) Generate(_ context.Context, prompt, ref string) (string, error) {
+	q := url.Values{
+		"model":  {"openai/gpt-image-1-mini"},
+		"width":  {"1024"},
+		"height": {"1024"},
+		"seed":   {"0"},
+	}
+	if ref != "" {
+		q.Set("image", ref)
+	}
+	if p.Key != "" {
+		q.Set("key", p.Key)
+	}
+	return fmt.Sprintf("https://gen.pollinations.ai/image/%s?%s", url.PathEscape(prompt), q.Encode()), nil
 }
 
 // Mock: picsum placeholders so the loop works with zero keys.
 type Mock struct{}
 
-func (Mock) Generate(_ context.Context, prompt string) (string, error) {
+func (Mock) Generate(_ context.Context, prompt, _ string) (string, error) {
 	return fmt.Sprintf("https://picsum.photos/seed/%d/768/512", rand.IntN(1<<30)), nil
 }
 

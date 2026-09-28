@@ -35,11 +35,11 @@ picsum placeholder images).
 | LLM judge | Groq (`llama-3.3-70b-versatile`) | `GROQ_API_KEY` |
 | Image gen | Google AI Studio (`gemini-2.5-flash-image` — easiest, single key) | `GEMINI_API_KEY` |
 | Image gen | Cloudflare Workers AI (`@cf/black-forest-labs/flux-1-schnell`) | `CF_ACCOUNT_ID` + `CF_API_TOKEN` |
-| Image gen | Pollinations (opt-in, no key — quality is rough) | none |
+| Image gen | Pollinations gen API (`openai/gpt-image-1-mini`; `?image=` passes the champion portrait for likeness) | `POLLINATION_API_KEY` |
 
-Server-level env: `GROQ_API_KEY`, `GEMINI_API_KEY`, `CF_ACCOUNT_ID`, `CF_API_TOKEN`, `ADDR` (default `:8080`), `GEN_DIR` (default `$TMPDIR/slop-gen`).
+Server-level env: `GROQ_API_KEY`, `POLLINATION_API_KEY`, `GEMINI_API_KEY`, `CF_ACCOUNT_ID`, `CF_API_TOKEN`, `ADDR` (default `:8080`), `GEN_DIR` (default `$TMPDIR/slop-gen`).
 
-`auto` resolution order: Gemini → Cloudflare → picsum mock.
+`auto` image provider = Pollinations (keyed). The old keyless `image.pollinations.ai` URL API is replaced by `gen.pollinations.ai`.
 
 **Host keys:** whoever creates a room can paste their own Groq / Gemini /
 Cloudflare keys on the join screen — they apply to that room only,
@@ -47,15 +47,15 @@ are held in memory, and are never sent to other clients.
 
 ## Game loop
 
-`lobby → draft → betting → combat → verdict → draft …`
+`lobby → draft → betting → combat → verdict → (shop, once everyone's fought) → draft …`
 
-- **draft**: pick adjective + noun → champion, image generated async
-- **betting**: non-fighters stake coins (min 10, winners get 2× back); skipped with only 2 players
-- **combat**: fighters play up to 2 verb cards each to sway the judge
-- **verdict**: LLM picks a winner + narrates events (fallback: mock judge); winner +25🪙, everyone +20🪙
-- phase timeouts auto-advance; host can also skip the verdict screen
-
-Shop phase is intentionally not implemented yet.
+- **draft**: pick a **forge template**, then fill its part-of-speech slots with cards (order and grammar enforced by the template). Everyone starts with `__noun__`, `__adj__`, `__adj__ __noun__`; champion image generated async. Noun cards sometimes arrive with an adjective attached; verb cards with an adverb. Spectators vote on the battleground — 4 LLM-generated locations per round.
+- **betting**: non-fighters stake coins (min 10, winners get 2× back); skipped with only 2 players. The judge's scene narration + establishing art land here.
+- **combat**: fighters pick one of 3 LLM-authored actions per round (or let fate pick) — up to 3 rounds, earlier rounds are a slideshow with art per beat.
+- **verdict**: LLM picks a winner + narrates (fallback: mock judge); winner +25🪙, everyone +20🪙.
+- **shop**: opens once every connected player has fought. Buy forge templates (e.g. `__noun__ with __adj__ and __adj__ __noun__` — "Dragon with Fiery and Sharp Claws") with coins; new templates unlock their parts of speech (verb/adv/pron/prep/conj) in your hand.
+- Host picks the narration **story level** in the lobby: Middle School / High School (default) / College — it shapes both narration and action options.
+Phase timeouts auto-advance; host can also skip the verdict screen.
 
 ## Card pools
 

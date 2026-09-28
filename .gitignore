@@ -4,3 +4,4 @@ slop-battlegrounds
 *.log
 *.tsbuildinfo
 .DS_Store
+.env
