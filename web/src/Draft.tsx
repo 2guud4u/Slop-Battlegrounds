@@ -115,6 +115,7 @@ function ForgeAnim({ champ }: { champ: { name: string; cards: Card[] } }) {
 export function HandDock({ state, send }: { state: State; send: Send }) {
   const [tmplID, setTmplID] = useState("");
   const [filled, setFilled] = useState<Record<number, Card>>({});
+  const [forging, setForging] = useState(false); // forge click → server ack
   const meP = state.players.find((p) => p.id === state.you);
   const drafted = !!meP?.champion;
   const draftMode = state.phase === "draft" && !drafted
@@ -130,19 +131,21 @@ export function HandDock({ state, send }: { state: State; send: Send }) {
 
   // fill: a card goes into the first empty slot of its kind
   const fill = (c: Card) => {
+    if (forging) return;
     const idx = slots.findIndex((s, i) => s === c.kind && !filled[i]);
     if (idx < 0 || usedIds.has(c.id)) return;
     setFilled({ ...filled, [idx]: c });
   };
   const clear = (i: number) => {
+    if (forging) return; // staged cards are locked while the forge flies
     const next = { ...filled };
     delete next[i];
     setFilled(next);
   };
-  const pickTmpl = (id: string) => { setTmplID(id); setFilled({}); };
+  const pickTmpl = (id: string) => { if (forging) return; setTmplID(id); setFilled({}); };
 
   return (
-    <div className="dock">
+    <div className={"dock" + (forging ? " forging" : "")}>
       <div className="tchips">
         {state.templates.map((t) => (
           <button
@@ -179,17 +182,17 @@ export function HandDock({ state, send }: { state: State; send: Send }) {
       </div>
       <button
         className="forge"
-        disabled={!allFilled}
+        disabled={!allFilled || forging}
         onClick={() => {
           send({
             type: "draft",
             template: tmpl.id,
             cards: slots.map((s, i) => (isLiteral(s) ? null : filled[i].id)).filter((x): x is string => !!x),
           });
-          setFilled({});
+          setForging(true); // cards stay staged until the champion lands
         }}
       >
-        ⚒ Forge champion
+        {forging ? "⚒ Forging…" : "⚒ Forge champion"}
       </button>
       <div className="hand">
         {hand.map((c) => {

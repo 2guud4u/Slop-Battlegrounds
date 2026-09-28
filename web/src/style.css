@@ -313,6 +313,10 @@ input {
   border: none;
   padding: 8px 20px;
 }
+.dock.forging .card, .dock.forging .tchip { cursor: default; }
+.dock.forging .staged .card.ontable { border-color: #ff8a3d; box-shadow: 0 0 16px #ff8a3d55, 0 6px 0 #b05010; }
+.dock.forging .hand .card { opacity: 0.5; }
+.dock.forging .forge { background: linear-gradient(160deg, #ff8a3d, #e06a1a); }
 .hand {
   display: flex;
   gap: 8px;
