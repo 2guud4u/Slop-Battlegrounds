@@ -168,22 +168,25 @@ func (g *Gemini) Generate(ctx context.Context, prompt, _ string) (string, error)
 	return "", fmt.Errorf("gemini: no image in response")
 }
 
-// Pollinations gen API — needs POLLINATION_API_KEY. Returns a URL; when a
-// reference image URL is given (champion portrait) it's passed through so
-// scene/fight art keeps likeness.
+// Pollinations gen API — needs POLLINATION_API_KEY. Returns a URL the client
+// loads directly. Model: z-image-turbo — cheapest (0.004 pollen/img flat) and
+// fastest on the platform; it's text-only, so a reference image is appended to
+// the prompt text instead of the image param to keep some scene continuity.
+const pollinationsModel = "tongyi-mai/z-image-turbo"
+
 type Pollinations struct {
 	Key string
 }
 
 func (p Pollinations) Generate(_ context.Context, prompt, ref string) (string, error) {
+	if ref != "" {
+		prompt += ", in the same arena as before" // no img input on this model
+	}
 	q := url.Values{
-		"model":  {"openai/gpt-image-1-mini"},
+		"model":  {pollinationsModel},
 		"width":  {"1024"},
 		"height": {"1024"},
 		"seed":   {"0"},
-	}
-	if ref != "" {
-		q.Set("image", ref)
 	}
 	if p.Key != "" {
 		q.Set("key", p.Key)

@@ -10,6 +10,7 @@ type ForgeTemplate struct {
 	Cost    int      `json:"cost"`    // coins; 0 = starter
 	Example string   `json:"example"` // a sample forged name
 	Slots   []string `json:"slots"`   // Kind* values or literal words
+	Sold    bool     `json:"sold"`    // shop: someone already bought this pattern
 }
 
 // Literal slots are joined into the name verbatim — they aren't cards.

@@ -51,7 +51,6 @@ type fightView struct {
 	Draw       bool           `json:"draw"`
 	MyOptions  []string       `json:"myOptions"` // only set for the viewing fighter
 	Verdict    *Verdict       `json:"verdict"`
-	ReadyAt    int64          `json:"readyAt"` // unix ms — round-1 actions unlock
 }
 
 type stateMsg struct {
@@ -68,7 +67,7 @@ type stateMsg struct {
 	Hand      []Card          `json:"hand"`
 	Templates []ForgeTemplate `json:"templates"` // owned forge templates
 	Shop      []ForgeTemplate `json:"shop"`      // buyable forge templates
-	ShopTurn  string          `json:"shopTurn"`  // player whose buy turn is live
+	RevealAt  int64           `json:"revealAt"`  // unix ms — draft reveal ends, betting opens
 	PackCost  int             `json:"packCost"`  // coins per 3-card pack
 
 	LocOptions []string       `json:"locOptions"`
@@ -95,7 +94,7 @@ func (r *Room) snapshotLocked(youID string) stateMsg {
 		You:        youID,
 		HostID:     r.hostID,
 		WinnerID:   r.WinnerID,
-		ShopTurn:   r.shopTurnLocked(),
+		RevealAt:   r.revealAt.UnixMilli(),
 		PackCost:   packCost,
 		Players:    []playerView{},
 		Bets:       []betView{},
@@ -127,7 +126,12 @@ func (r *Room) snapshotLocked(youID string) stateMsg {
 		}
 	}
 	if r.Phase == PhaseShop {
-		msg.Shop = forgeTemplates
+		stock := make([]ForgeTemplate, len(forgeTemplates))
+		copy(stock, forgeTemplates)
+		for i := range stock {
+			stock[i].Sold = r.soldTemplates[stock[i].ID]
+		}
+		msg.Shop = stock
 	}
 	for _, b := range r.bets {
 		msg.Bets = append(msg.Bets, betView{
@@ -150,7 +154,7 @@ func (r *Room) snapshotLocked(youID string) stateMsg {
 			}
 			return out
 		}
-		fv := &fightView{Verdict: r.fight.Verdict, Location: r.fight.Location, Scene: r.fight.Scene, SceneImage: r.fight.SceneImage, Round: r.fight.Round, Fate: r.fight.Fate, Resolving: r.fight.Resolving, Events: append([]RoundEvent{}, r.fight.Events...), Draw: r.fight.Draw, MyOptions: r.fight.Options[youID], ReadyAt: r.fight.ReadyAt.UnixMilli()}
+		fv := &fightView{Verdict: r.fight.Verdict, Location: r.fight.Location, Scene: r.fight.Scene, SceneImage: r.fight.SceneImage, Round: r.fight.Round, Fate: r.fight.Fate, Resolving: r.fight.Resolving, Events: append([]RoundEvent{}, r.fight.Events...), Draw: r.fight.Draw, MyOptions: r.fight.Options[youID]}
 		if a := r.findLocked(r.fight.A); a != nil {
 			fv.A = fighterView{PlayerID: a.ID, Name: a.Name, AvatarURL: AvatarURL(a.Avatar), Moves: moves(a.ID)}
 			if a.Champion != nil {

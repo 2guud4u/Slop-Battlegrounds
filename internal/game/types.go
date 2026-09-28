@@ -1,9 +1,6 @@
 package game
 
-import (
-	"context"
-	"time"
-)
+import "context"
 
 type Phase string
 
@@ -110,7 +107,6 @@ type Fight struct {
 	Resolving  bool                // a round verdict is in flight
 	Draw       bool                // nobody won after round 3
 	Verdict    *Verdict
-	ReadyAt    time.Time `json:"-"` // round-1 actions unlock at this time
 }
 type JudgeRequest struct {
 	A, B           Champion

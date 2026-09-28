@@ -65,7 +65,6 @@ type stateMsg struct {
 	Hand       []game.Card          `json:"hand"`
 	Templates  []game.ForgeTemplate `json:"templates"`
 	Shop       []game.ForgeTemplate `json:"shop"`
-	ShopTurn   string               `json:"shopTurn"`
 }
 
 func dial(t *testing.T, url string, join JoinMsg) *testClient {
@@ -181,7 +180,6 @@ func TestFullGameLoop(t *testing.T) {
 	s1 = c1.wait(func(m stateMsg) bool {
 		return m.Phase == game.PhaseCombat && m.Fight != nil && len(m.Fight.MyOptions) > 0
 	})
-	time.Sleep(6200 * time.Millisecond) // reveal + bell countdown
 	c1.send(game.ClientMsg{Type: "verb", Verb: s1.Fight.MyOptions[0]})
 	c2.send(game.ClientMsg{Type: "pass"})
 
@@ -224,17 +222,14 @@ func TestFullGameLoop(t *testing.T) {
 		t.Fatalf("starter templates = %d, want 3", len(s1.Templates))
 	}
 	s2shop := c2.wait(func(m stateMsg) bool { return m.Phase == game.PhaseShop })
-	// Serial shop: fewest wins shops first — that's the verdict loser.
+	// Simultaneous shop: anyone may buy; templates are single-stock.
 	shopC, otherC := c1, c2
-	shopS, otherS := s1, s2shop
+	shopS := s1
 	if s1.You == v.WinnerID {
 		shopC, otherC = c2, c1
-		shopS, otherS = s2shop, s1
+		shopS = s2shop
 	}
-	if shopS.ShopTurn != shopS.You {
-		t.Fatalf("first shop turn = %q, want loser %q", shopS.ShopTurn, shopS.You)
-	}
-	// Loser (105 coins) buys the 45-coin noun_with_adj_noun template.
+	// The verdict loser (105 coins) buys the 45-coin noun_with_adj_noun template.
 	shopC.send(game.ClientMsg{Type: "buy", Template: "noun_with_adj_noun"})
 	bs := shopC.wait(func(m stateMsg) bool { return len(m.Templates) == 4 })
 	var me struct {
@@ -250,9 +245,8 @@ func TestFullGameLoop(t *testing.T) {
 	if me.Coins != 75 {
 		t.Fatalf("loser coins after buy = %d, want 75 (120-45)", me.Coins)
 	}
-	// Finish both turns: loser passes → winner's turn → winner passes → draft.
+	// Both pass → +2 parting cards each → next draft.
 	shopC.send(game.ClientMsg{Type: "pass"})
-	otherC.wait(func(m stateMsg) bool { return m.ShopTurn == otherS.You })
 	otherC.send(game.ClientMsg{Type: "pass"})
 	sd1 := c1.wait(func(m stateMsg) bool { return m.Phase == game.PhaseDraft })
 	if sd1.Round != 2 {
@@ -357,9 +351,6 @@ func TestDrawAfterThreeRounds(t *testing.T) {
 		st2 := c2.wait(func(m stateMsg) bool {
 			return m.Fight != nil && m.Fight.Round == round && !m.Fight.Resolving && len(m.Fight.MyOptions) > 0
 		})
-		if round == 1 {
-			time.Sleep(6200 * time.Millisecond) // reveal + bell countdown
-		}
 		c1.send(game.ClientMsg{Type: "verb", Verb: st1.Fight.MyOptions[0]})
 		c2.send(game.ClientMsg{Type: "verb", Verb: st2.Fight.MyOptions[0]})
 	}

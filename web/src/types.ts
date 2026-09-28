@@ -19,6 +19,7 @@ export interface ForgeTemplate {
   cost: number;    // 0 = starter
   example: string;
   slots: string[]; // card kinds or literal words ("of", "with"…)
+  sold: boolean;   // single stock — someone already bought it
 }
 
 export interface PlayerView {
@@ -93,7 +94,6 @@ export interface FightView {
   events: RoundEventView[];
   draw: boolean;
   myOptions: string[];
-  readyAt: number; // unix ms — round-1 actions unlock
   verdict: VerdictView | null;
 }
 
@@ -112,7 +112,7 @@ export interface State {
   hand: Card[];
   templates: ForgeTemplate[]; // owned forge templates
   shop: ForgeTemplate[];      // buyable, only in shop phase
-  shopTurn: string;           // player whose buy turn is live
+  revealAt: number;           // unix ms — draft reveal ends, betting opens
   packCost: number;           // coins per 3-card pack
   locOptions: string[];
   locVotes: Record<string, number>;

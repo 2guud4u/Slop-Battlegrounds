@@ -409,15 +409,47 @@ input {
   font-size: 0.72rem; padding: 4px 10px; border-radius: 20px;
   background: #1c1830; border: 1px solid #4a3d66; color: #cfc4a8;
 }
-.tchip.sel { border-color: #ffd166; color: #ffd166; box-shadow: 0 0 8px #ffd16644; }
+.tchip.sel { border-color: #ffd166; box-shadow: 0 0 8px #ffd16644; }
+
+/* pattern chips: __adj__ → colored token, literals stay words */
+.pat { display: inline-flex; align-items: center; gap: 4px; flex-wrap: wrap; }
+.patline { min-height: 30px; display: flex; align-items: center; justify-content: center; }
+.kchip {
+  display: inline-block; padding: 2px 8px; border-radius: 5px;
+  font-size: 0.62rem; font-weight: 800; letter-spacing: 0.5px; text-transform: uppercase;
+  border: 1px solid; line-height: 1.4;
+}
+.plit { font-style: italic; color: #c9bd9d; font-size: 0.78rem; }
+.kchip.adj   { color: #9a7fff; border-color: #6a4fd8; background: #6a4fd822; }
+.kchip.noun  { color: #3fd49a; border-color: #1e7d5a; background: #1e7d5a22; }
+.kchip.verb  { color: #ff5a7d; border-color: #b0304a; background: #b0304a22; }
+.kchip.adv   { color: #ffb347; border-color: #c07f1a; background: #c07f1a22; }
+.kchip.pron  { color: #5aa8ff; border-color: #2376c8; background: #2376c822; }
+.kchip.prep  { color: #b8b88a; border-color: #7a7a5a; background: #7a7a5a22; }
+.kchip.conj  { color: #c08fff; border-color: #8a5ac0; background: #8a5ac022; }
+.kchip.inter { color: #ff7ab0; border-color: #d83a7a; background: #d83a7a22; }
+
+/* empty slot on the table — a card-shaped outline tinted by its kind */
 .slotph {
   width: 96px; height: 58px;
-  font-size: 0.72rem; font-weight: 700;
-  border: 1px dashed #6a5d88; border-radius: 8px;
-  background: #14101f88; color: #7d7390;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 0.62rem; font-weight: 800; letter-spacing: 0.8px; text-transform: uppercase;
+  border: 2px dashed #6a5d88; border-radius: 8px;
+  background: #14101f66;
 }
+.slotph.adj   { border-color: #6a4fd8; color: #9a7fff; }
+.slotph.noun  { border-color: #1e7d5a; color: #3fd49a; }
+.slotph.verb  { border-color: #b0304a; color: #ff5a7d; }
+.slotph.adv   { border-color: #c07f1a; color: #ffb347; }
+.slotph.pron  { border-color: #2376c8; color: #5aa8ff; }
+.slotph.prep  { border-color: #7a7a5a; color: #b8b88a; }
+.slotph.conj  { border-color: #8a5ac0; color: #c08fff; }
+.slotph.inter { border-color: #d83a7a; color: #ff7ab0; }
 .lit { align-self: center; font-style: italic; color: #c9bd9d; font-size: 0.9rem; padding: 0 2px; }
-
+.tmpl.soldout { opacity: 0.45; border-style: dashed; }
+.soldtag { color: #b0304a; font-weight: 800; font-size: 0.75rem; letter-spacing: 1px; text-transform: uppercase; }
+.hand.discard .card { border-color: #b0304a; }
+.hand.discard .card:hover:not(.dead) { box-shadow: 0 10px 20px rgba(0,0,0,.55), 0 0 0 3px #b0304a, inset 0 0 0 4px #fffdf4; }
 /* shop */
 .shopgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; margin: 12px 0; }
 .tmpl {
@@ -454,21 +486,28 @@ input {
 .card.mini::after { display: none; }
 .card.mini::before { font-size: 0.5rem; top: 2px; left: 6px; }
 
-/* pre-bell reveal: cards tossed on the table -> smoke -> vs -> FIGHT */
+/* draft reveal: real cards drop onto the stage -> smoke -> vs -> FIGHT */
 .reveal { min-height: 280px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; }
-.throw { display: flex; flex-direction: column; gap: 22px; align-items: center; }
-.throwrow { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; }
-.throwrow.top .card { animation: toss-top 0.5s cubic-bezier(0.2, 1.2, 0.4, 1) both; }
-.throwrow.bot .card { animation: toss-bot 0.5s cubic-bezier(0.2, 1.2, 0.4, 1) both; }
-@keyframes toss-top {
-  from { transform: translateY(-140px) rotate(-18deg) scale(0.9); opacity: 0; }
-  60%  { transform: translateY(6px) rotate(2deg); opacity: 1; }
+.reveal .throw { position: relative; display: flex; flex-direction: column; gap: 18px; align-items: center; min-height: 190px; justify-content: center; }
+.throwrow { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; justify-content: center; }
+.throwrow .rowtag { font-size: 0.66rem; font-weight: 800; letter-spacing: 0.6px; text-transform: uppercase; color: #ffd166bb; min-width: 88px; text-align: right; }
+.reveal .card.ontable { cursor: default; }
+.throwrow.top .card.ontable { animation: deal-top 0.55s cubic-bezier(0.2, 1.1, 0.4, 1) both; }
+.throwrow.bot .card.ontable { animation: deal-bot 0.55s cubic-bezier(0.2, 1.1, 0.4, 1) both; }
+@keyframes deal-top {
+  from { transform: translateY(-160px) rotate(-22deg) scale(0.8); opacity: 0; }
+  70%  { transform: translateY(8px) rotate(2deg); opacity: 1; }
   to   { transform: none; opacity: 1; }
 }
-@keyframes toss-bot {
-  from { transform: translateY(140px) rotate(18deg) scale(0.9); opacity: 0; }
-  60%  { transform: translateY(-6px) rotate(-2deg); opacity: 1; }
+@keyframes deal-bot {
+  from { transform: translateY(160px) rotate(22deg) scale(0.8); opacity: 0; }
+  70%  { transform: translateY(-8px) rotate(-2deg); opacity: 1; }
   to   { transform: none; opacity: 1; }
+}
+.reveal .smokecloud {
+  position: absolute; inset: 0; z-index: 2;
+  display: flex; align-items: center; justify-content: center;
+  background: radial-gradient(ellipse, rgba(20,16,12,.35), transparent 70%);
 }
 .reveal.smoke .puff {
   font-size: 4rem; animation: puff 1.9s ease-out both;

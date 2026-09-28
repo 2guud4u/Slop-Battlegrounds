@@ -95,50 +95,103 @@ func TestNounSafetyReplenishes(t *testing.T) {
 	}
 }
 
-func TestBuyPackRespectsTurnAndCap(t *testing.T) {
+func TestShopOverbuyThenDiscard(t *testing.T) {
 	r, ids := testRoom(t, 2)
-	p1, p2 := r.findLocked(ids[0]), r.findLocked(ids[1])
-	p1.Wins, p2.Wins = 0, 2 // p1 shops first
-	p1.Hand = p1.Hand[:2]
+	p1 := r.findLocked(ids[0])
 	r.toShopLocked()
-	if got := r.shopTurnLocked(); got != ids[0] {
-		t.Fatalf("first shop turn = %q, want %q (fewest wins)", got, ids[0])
-	}
-	// Out of turn buy is ignored.
-	before := len(p2.Hand)
-	r.buyPackLocked(ids[1], KindNoun)
-	if len(p2.Hand) != before {
-		t.Fatal("out-of-turn pack buy applied")
-	}
-	// In-turn buy works.
-	r.buyPackLocked(ids[0], KindNoun)
-	if len(p1.Hand) != 2+packSize {
-		t.Fatalf("hand = %d, want %d", len(p1.Hand), 2+packSize)
-	}
-	// Fill to 7 then cap blocks the next pack.
+	// Full hand can still buy — the pack lands on top.
 	for len(p1.Hand) < handMax {
 		p1.Hand = append(p1.Hand, r.drawLocked(KindAdj))
 	}
-	r.buyPackLocked(ids[0], KindAdj)
-	if len(p1.Hand) != handMax {
-		t.Fatalf("hand = %d, cap %d ignored", len(p1.Hand), handMax)
+	r.buyPackLocked(ids[0], KindNoun)
+	if len(p1.Hand) != handMax+packSize {
+		t.Fatalf("hand = %d, want %d after overbuy", len(p1.Hand), handMax+packSize)
+	}
+	// Discards only legal while over the cap.
+	r.discardLocked(ids[0], p1.Hand[0].ID)
+	if len(p1.Hand) != handMax+packSize-1 {
+		t.Fatalf("hand = %d after discard", len(p1.Hand))
 	}
 }
 
-func TestShopOrderFewestWinsThenCoins(t *testing.T) {
-	r, ids := testRoom(t, 3)
-	a, b, c := r.findLocked(ids[0]), r.findLocked(ids[1]), r.findLocked(ids[2])
-	a.Wins, b.Wins, c.Wins = 2, 1, 1 // b/c tie on wins → coins decide
-	b.Coins, c.Coins = 50, 30        // c is poorer → shops before b
+func TestShopDoneDealsTwoCardsAndEnds(t *testing.T) {
+	r, ids := testRoom(t, 2)
+	p1, p2 := r.findLocked(ids[0]), r.findLocked(ids[1])
+	p1.Hand, p2.Hand = p1.Hand[:3], p2.Hand[:4]
 	r.toShopLocked()
-	want := []string{ids[2], ids[1], ids[0]}
-	if len(r.shopQueue) != 3 {
-		t.Fatalf("queue = %v", r.shopQueue)
+	r.passLocked(ids[0]) // p1 done → +2 cards
+	if len(p1.Hand) != 5 {
+		t.Fatalf("hand = %d, want 3+2 parting cards", len(p1.Hand))
 	}
-	for i, id := range want {
-		if r.shopQueue[i] != id {
-			t.Fatalf("queue[%d] = %q, want %q (order %v)", i, r.shopQueue[i], id, want)
+	if r.Phase == PhaseShop {
+		// still waiting on p2
+		r.passLocked(ids[1])
+	}
+	if r.Phase == PhaseShop {
+		t.Fatal("shop did not close after everyone passed")
+	}
+	if len(p2.Hand) != 6 {
+		t.Fatalf("p2 hand = %d, want 4+2", len(p2.Hand))
+	}
+}
+
+func TestShopDoneGuaranteesNoun(t *testing.T) {
+	r, ids := testRoom(t, 2)
+	p1 := r.findLocked(ids[0])
+	// Strip all nouns — the parting cards must include one.
+	var keep []Card
+	for _, c := range p1.Hand {
+		if c.Kind != KindNoun {
+			keep = append(keep, c)
 		}
+	}
+	p1.Hand = keep
+	r.toShopLocked()
+	r.passLocked(ids[0])
+	hasNoun := false
+	for _, c := range p1.Hand[len(p1.Hand)-2:] {
+		if c.Kind == KindNoun {
+			hasNoun = true
+		}
+	}
+	if !hasNoun {
+		t.Fatal("parting cards dealt no noun to a noun-dry hand")
+	}
+}
+
+func TestShopOvercapMustDiscardBeforeEnd(t *testing.T) {
+	r, ids := testRoom(t, 2)
+	p1, p2 := r.findLocked(ids[0]), r.findLocked(ids[1])
+	for len(p1.Hand) < handMax+2 {
+		p1.Hand = append(p1.Hand, r.drawLocked(KindAdj))
+	}
+	p2.Hand = p2.Hand[:4] // 4 + 2 parting = 6 — under the cap, no discards owed
+	r.toShopLocked()
+	r.passLocked(ids[0])
+	r.passLocked(ids[1])
+	if r.Phase != PhaseShop {
+		t.Fatalf("shop closed while %s is %d over the cap", ids[0], len(p1.Hand)-handMax)
+	}
+	for len(p1.Hand) > handMax { // 9 + 2 parting = 11 → 4 discards
+		r.discardLocked(ids[0], p1.Hand[0].ID)
+	}
+	if r.Phase == PhaseShop {
+		t.Fatal("shop still open after discards")
+	}
+}
+
+func TestShopTemplateSoldOut(t *testing.T) {
+	r, ids := testRoom(t, 2)
+	p1, p2 := r.findLocked(ids[0]), r.findLocked(ids[1])
+	p1.Coins, p2.Coins = 100, 100
+	r.toShopLocked()
+	r.shopLocked(ids[0], "noun_of_noun")
+	if !r.soldTemplates["noun_of_noun"] {
+		t.Fatal("template not marked sold")
+	}
+	r.shopLocked(ids[1], "noun_of_noun") // second buyer loses the race
+	if p2.Templates["noun_of_noun"] {
+		t.Fatal("sold-out template sold twice")
 	}
 }
 func TestGameOverWhenNobodyCanForge(t *testing.T) {
