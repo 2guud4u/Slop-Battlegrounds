@@ -35,3 +35,38 @@ tag in champion to help flavors:
 or swap champions 
 
 after forge confirmed if waiting for other player, move those cards above your card hand
+
+
+
+my-server-app/
+├── cmd/
+│   └── server/
+│       └── main.go       # Application entry point (thin initialization layer)
+├── internal/             # Private code; cannot be imported by other projects
+│   ├── api/              # HTTP routers, middleware, and request/response handlers
+│   │   ├── handlers.go
+│   │   └── middleware.go
+│   ├── config/           # Configuration loading (env vars, YAML, flags)
+│   ├── service/          # Core business logic (domain layer)
+│   └── storage/          # Data access layer (SQL queries, Redis clients, etc.)
+│       └── database.go
+├── go.mod                # Module definition
+├── go.sum                # Dependency checksums
+├── README.md             
+└── Makefile              # Automation for building, testing, and running
+
+
+│   ├── src/
+│   │   ├── assets/         # Images, styles, global CSS
+│   │   ├── components/     # UI elements (e.g., ChatWindow, StatusBadge)
+│   │   ├── context/        # Optional: WebSocket Context Provider
+│   │   │   └── WebSocketContext.jsx
+│   │   ├── hooks/          # Custom hook for reusable socket logic
+│   │   │   └── useWebSocket.js
+│   │   ├── services/       # Optional: Non-React socket management/API
+│   │   │   └── socketService.js
+│   │   ├── App.jsx         # Main application component
+│   │   └── main.jsx        # Entry point (mounting Provider/App)
+│   ├── .env                # Frontend env (VITE_WS_URL)
+│   ├── package.json
+│   └── vite.config.js      # Build configuration

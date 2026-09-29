@@ -169,10 +169,10 @@ func (g *Gemini) Generate(ctx context.Context, prompt, _ string) (string, error)
 }
 
 // Pollinations gen API — needs POLLINATION_API_KEY. Returns a URL the client
-// loads directly. Model: z-image-turbo — cheapest (0.004 pollen/img flat) and
-// fastest on the platform; it's text-only, so a reference image is appended to
-// the prompt text instead of the image param to keep some scene continuity.
-const pollinationsModel = "tongyi-mai/z-image-turbo"
+// loads directly. Model: dreamshaper-8-lcm — near-instant (fastest measured on
+// the platform), 300 RPM/user so it won't queue mid-fight, and cheapest at
+// 0.0001 pollen/img. Text-only, so a reference URL becomes a prompt hint.
+const pollinationsModel = "lykon/dreamshaper-8-lcm"
 
 type Pollinations struct {
 	Key string

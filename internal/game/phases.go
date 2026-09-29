@@ -182,7 +182,9 @@ func (r *Room) toBettingLocked() {
 		r.toDraftLocked()
 		return
 	}
-	r.fight.Location = r.winningLocationLocked() // spectator votes are in
+	if r.fight.Location == "" { // set at reveal arm; late votes can't repaint the scene
+		r.fight.Location = r.winningLocationLocked()
+	}
 	for _, p := range r.players {
 		p.Passed = false
 	}
@@ -264,6 +266,8 @@ func (r *Room) maybeAdvanceLocked() {
 		// then the table moves to betting.
 		if r.revealAt.IsZero() {
 			r.revealAt = time.Now().Add(5 * time.Second)
+			r.fight.Location = r.winningLocationLocked() // votes so far — scene gen can start
+			r.genSceneLocked()                           // paint during the reveal, not after
 			gen := r.gen
 			time.AfterFunc(time.Until(r.revealAt), func() {
 				r.mu.Lock()

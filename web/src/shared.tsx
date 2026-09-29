@@ -87,8 +87,8 @@ export function FadeImg({ src, alt, ph }: { src: string; alt: string; ph: string
   if (!src) return <div className="beatskel"><div className="paintspin">🎨</div><span>{ph}</span></div>;
   return (
     <div className={"imgwrap" + (loaded ? " loaded" : "")}>
-      {!loaded ? <div className="beatskel"><div className="paintspin">🎨</div><span>{ph}</span></div> : <img src={src} alt={alt} onLoad={() => setLoaded(true)} />}
-
+      <img src={src} alt={alt} onLoad={() => setLoaded(true)} />
+      {!loaded && <div className="beatskel cover"><div className="paintspin">🎨</div><span>{ph}</span></div>}
     </div>
   );
 }
