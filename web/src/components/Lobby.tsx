@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import type { JoinOpts, Send } from "../services/socket";
+import { fetchAvatars, preconnect, type JoinOpts, type Send } from "../services/socket";
 import type { AvatarInfo, State } from "./types";
 
 export function JoinScreen({ onJoin, error }: { onJoin: (o: JoinOpts) => void; error: string }) {
@@ -14,6 +14,11 @@ export function JoinScreen({ onJoin, error }: { onJoin: (o: JoinOpts) => void; e
   // Failed joins land as errors — release the spinner so they can retry.
   useEffect(() => {
     if (error) setJoining(false);
+  }, [error]);
+  // Warm up the socket + avatar list while the player reads the screen.
+  useEffect(() => {
+    preconnect();
+    fetchAvatars();
   }, [error]);
 
   return (
@@ -67,7 +72,7 @@ export function Lobby({ state, isHost, send }: { state: State; isHost: boolean; 
   for (const p of state.players) if (p.avatar) taken[p.avatar] = p.name;
 
   useEffect(() => {
-    fetch("/api/avatars").then((r) => r.json()).then(setAvatars).catch(() => {});
+    fetchAvatars().then(setAvatars);
   }, []);
   useEffect(() => {
     if (me) setName(me.name);

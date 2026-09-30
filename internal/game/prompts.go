@@ -2,9 +2,9 @@ package game
 
 import "fmt"
 
-// Image prompt recipes, tuned for FLUX on Pollinations. Structure follows
+// Image prompt recipes shared by every game.Imager provider. Structure follows
 // [subject], [action], [environment], [style], [lighting], [composition],
-// [quality] — the ordering image models weight most.
+// [quality] — the ordering diffusion models weight most.
 const artStyle = "vibrant stylized digital painting, bold saturated colors, dramatic cinematic lighting, sharp focus, highly detailed"
 
 // sceneImagePrompt: wide establishing shot of the arena narration, shown while

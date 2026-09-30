@@ -72,8 +72,10 @@ cmd/server/           entrypoint — loads config, mounts the hub
 internal/config/      .env → typed Defaults (provider keys, GEN_DIR, ADDR)
 internal/api/         handlers.go (mux + ws + room registry),
                       providers.go (judge/imager resolution), ws.go (send pump)
-internal/game/        room state machine (lobby→draft→betting→combat→verdict)
-internal/llm/         groq.go, mock.go   (game.Judge)
+internal/game/        room state machine (lobby→draft→betting→combat→verdict),
+                      prompts.go = image prompts shared by every imager
+internal/llm/         prompts.go (all LLM prompts), judge.go (game.Judge over any
+                      Chat: prompts + JSON parsing), groq.go (Chat transport), mock.go
 internal/image/       gemini, cloudflare, pollinations, picsum-mock (game.Imager)
 web/src/components/   screens (Lobby, Draft, Fight, Shop) + shared widgets
 web/src/hooks/        useNow (tick), …

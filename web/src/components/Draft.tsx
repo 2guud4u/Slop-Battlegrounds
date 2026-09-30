@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type CSSProperties } from "react";
 import { useNow } from "../hooks/useNow";
 import type { Send } from "../services/socket";
 import type { Card, State } from "./types";
@@ -232,25 +232,31 @@ function ChampionGallery({ state }: { state: State }) {
   );
 }
 
-// Reveal: once both champions are forged the real cards hit the table — a
-// puff of smoke turns them into names, VS, then bets open.
+// Reveal: once both champions are forged the players take turns playing their
+// real cards from the hand onto the table — a puff of smoke turns them into
+// names, VS, then bets open.
 function Reveal({ f, until, now }: { f: NonNullable<State["fight"]>; until: number; now: number }) {
   const left = until - now; // ms until the reveal ends
   const stage = left > 2500 ? "throw" : left > 1200 ? "smoke" : left > 500 ? "vs" : "fight";
+  const rows = [f.a, f.b].map((fv) => fv.champion?.cards ?? []);
+  // Turns alternate A, B, A, B… and squeeze into the ~2s the throw stage has.
+  const lastTurn = Math.max(1, (rows[0].length - 1) * 2, (rows[1].length - 1) * 2 + 1);
+  const stagger = Math.min(320, 1500 / lastTurn);
   return (
     <div className={"reveal " + stage}>
       <div className={"throw " + (stage === "throw" || stage === "smoke" ? "dealt" : "")}>
         {[f.a, f.b].map((fv, side) => (
           <div key={fv.playerId} className={"throwrow " + (side === 0 ? "top" : "bot")}>
             <span className="rowtag">{fv.name} plays</span>
-            {fv.champion?.cards?.map((c, i) => (
+            {rows[side].map((c, i) => (
               <span
                 key={c.id}
-                className={"card ontable " + c.kind}
+                className={"card ontable playcard " + c.kind}
                 data-kind={c.kind}
-                style={{ animationDelay: `${side * 900 + i * 140}ms` }}
+                style={playStyle(i, rows[side].length, side, c.id, (i * 2 + side) * stagger)}
               >
                 {c.text}
+                <span className="cardback" />
               </span>
             ))}
           </div>
@@ -277,4 +283,22 @@ function Reveal({ f, until, now }: { f: NonNullable<State["fight"]>; until: numb
       {stage === "fight" && <div className="bellcd">FIGHT!</div>}
     </div>
   );
+}
+
+// playStyle places a card's start pose in its owner's fanned hand (above the
+// table for A, below for B) and gives it a small, stable landing tilt.
+function playStyle(i: number, n: number, side: number, id: string, delay: number): CSSProperties {
+  const mid = (n - 1) / 2;
+  const slot = 104; // card width + gap on the table
+  let h = 0;
+  for (const ch of id) h = (h * 31 + ch.charCodeAt(0)) | 0;
+  const dir = side === 0 ? -1 : 1;
+  return {
+    animationDelay: `${delay}ms`,
+    "--sx": `${(mid - i) * slot + (i - mid) * 22}px`, // hand is bunched at row center
+    "--sy": `${dir * 190}px`,
+    "--fan": `${dir * (i - mid) * -9}deg`, // fanned like a held hand
+    "--arc": `${dir * -18}px`, // flight overshoots toward the table
+    "--tilt": `${(Math.abs(h) % 7) - 3}deg`,
+  } as CSSProperties;
 }
