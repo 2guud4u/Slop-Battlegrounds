@@ -1,7 +1,10 @@
 package game
 
 import (
+	"crypto/rand"
+	"encoding/hex"
 	"fmt"
+	"log"
 	"strings"
 	"sync"
 	"time"
@@ -19,6 +22,10 @@ const (
 	joinBonus = 20
 	betOdds   = 2 // winner bettors get stake*betOdds back
 	minBet    = 10
+
+	// reconnectGrace: a dropped seat stays "connected" this long so a page
+	// reload doesn't forfeit the fighter's turn or skip their shop.
+	reconnectGrace = 8 * time.Second
 )
 
 // Client is one websocket connection owned by a player.
@@ -82,21 +89,35 @@ func New(code string, j Judge, img Imager) *Room {
 
 // ---------- join / leave ----------
 
-// Join adds (or reconnects) a player. Returns the player ID.
-func (r *Room) Join(name, avatar string, c Client) (string, error) {
+// Join adds (or reconnects) a player. A matching seat token reclaims that
+// seat in any phase; otherwise a same-name match does (legacy/manual rejoin).
+// Returns the player ID; the seat token reaches the client in its snapshot.
+func (r *Room) Join(name, avatar, token string, c Client) (string, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	// Reconnect: same (non-empty) name reclaims the seat.
-	if name != "" {
+	var seat *Player
+	if token != "" {
 		for _, p := range r.players {
-			if strings.EqualFold(p.Name, name) {
-				p.Connected = true
-				r.conns[p.ID] = c
-				r.broadcastLocked()
-				return p.ID, nil
+			if p.Token == token {
+				seat = p
+				break
 			}
 		}
+	}
+	if seat == nil && name != "" {
+		for _, p := range r.players {
+			if strings.EqualFold(p.Name, name) {
+				seat = p
+				break
+			}
+		}
+	}
+	if seat != nil {
+		seat.Connected = true
+		r.conns[seat.ID] = c
+		r.broadcastLocked()
+		return seat.ID, nil
 	}
 	if r.Phase != PhaseLobby {
 		return "", fmt.Errorf("game already in progress")
@@ -122,6 +143,7 @@ func (r *Room) Join(name, avatar string, c Client) (string, error) {
 		Coins:     startCoins,
 		Connected: true,
 		Templates: map[string]bool{},
+		Token:     newToken(),
 	}
 	for _, id := range starterTemplateIDs {
 		p.Templates[id] = true
@@ -136,23 +158,43 @@ func (r *Room) Join(name, avatar string, c Client) (string, error) {
 	return p.ID, nil
 }
 
-func (r *Room) Leave(playerID string) {
+func newToken() string {
+	b := make([]byte, 16)
+	_, _ = rand.Read(b)
+	return hex.EncodeToString(b)
+}
+
+// Leave detaches c from the player's seat. The seat stays live for
+// reconnectGrace; if nobody reclaims it by then, the player is marked
+// disconnected and the phase machine skips them. A stale socket closing
+// after a reload (c no longer the seat's conn) is ignored.
+func (r *Room) Leave(playerID string, c Client) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	for _, p := range r.players {
-		if p.ID == playerID {
-			p.Connected = false
-			delete(r.conns, p.ID)
-		}
+	if r.conns[playerID] != c {
+		return // already replaced by a newer connection
 	}
+	delete(r.conns, playerID)
+	time.AfterFunc(reconnectGrace, func() { r.expireSeat(playerID) })
+}
+
+// expireSeat drops a player who didn't come back within the grace period.
+func (r *Room) expireSeat(playerID string) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if _, back := r.conns[playerID]; back {
+		return
+	}
+	p := r.findLocked(playerID)
+	if p == nil || !p.Connected {
+		return
+	}
+	p.Connected = false
+	log.Printf("room %s: %s dropped (no reconnect within %v)", r.Code, p.Name, reconnectGrace)
 	// A shopper who left: mark done, deal+trim so the phase can close.
 	if r.Phase == PhaseShop {
-		for _, p := range r.players {
-			if !p.Connected {
-				p.Passed = true
-				r.shopCloseLocked(p)
-			}
-		}
+		p.Passed = true
+		r.shopCloseLocked(p)
 	}
 	r.maybeAdvanceLocked()
 	r.broadcastLocked()

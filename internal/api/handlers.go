@@ -23,6 +23,7 @@ type JoinMsg struct {
 	Room          string `json:"room"` // empty = create a new room
 	Name          string `json:"name"`
 	Avatar        string `json:"avatar"`        // avatar key from /api/avatars
+	Token         string `json:"token"`         // seat key from a previous session — reclaims the seat
 	LLMProvider   string `json:"llmProvider"`   // host only
 	LLMKey        string `json:"llmKey"`        // host only
 	ImageProvider string `json:"imageProvider"` // host only: "auto"|"cloudflare"|"gemini"|"pollinations"|"mock"
@@ -90,7 +91,7 @@ func (h *Hub) serveWS(w http.ResponseWriter, r *http.Request) {
 	}
 	c := newWSClient(conn, ctx)
 	go c.pump()
-	playerID, err := room.Join(jm.Name, jm.Avatar, c)
+	playerID, err := room.Join(jm.Name, jm.Avatar, jm.Token, c)
 	log.Printf("room %s: %s joined in %v", room.Code, jm.Name, time.Since(t0))
 	if err != nil {
 		_ = wsjson.Write(ctx, conn, game.ClientMsg{Type: "error", Message: err.Error()})
@@ -98,7 +99,7 @@ func (h *Hub) serveWS(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer func() {
-		room.Leave(playerID)
+		room.Leave(playerID, c)
 		c.close()
 		conn.Close(websocket.StatusNormalClosure, "bye")
 	}()

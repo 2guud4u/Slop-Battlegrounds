@@ -103,6 +103,7 @@ export interface State {
   phase: Phase;
   round: number;
   you: string;
+  token: string; // this viewer's seat key — persisted for reload
   hostId: string;
   level: string; // "middle" | "high" | "college"
   players: PlayerView[];

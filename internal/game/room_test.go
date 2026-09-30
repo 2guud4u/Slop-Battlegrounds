@@ -32,7 +32,7 @@ func testRoom(t *testing.T, n int) (*Room, []string) {
 	r := New("test", stubJudge{}, stubImager{})
 	var ids []string
 	for i := 0; i < n; i++ {
-		id, err := r.Join("p"+string(rune('a'+i)), "av", stubClient{})
+		id, err := r.Join("p"+string(rune('a'+i)), "av", "", stubClient{})
 		if err != nil {
 			t.Fatalf("join: %v", err)
 		}
@@ -232,5 +232,46 @@ func TestOddPlayerGetsPastWinner(t *testing.T) {
 	}
 	if !got[ids[1]] {
 		t.Fatalf("bout = %v, want past winner %s as the rematch opponent", got, ids[1])
+	}
+}
+
+// namedClient lets tests tell two sockets for the same seat apart.
+type namedClient struct{ name string }
+
+func (*namedClient) SendJSON(any) error { return nil }
+
+func TestReloadReclaimsSeatMidGame(t *testing.T) {
+	r, ids := testRoom(t, 2)
+	p := r.findLocked(ids[0])
+	hand := len(p.Hand)
+	r.Phase = PhaseCombat // joins by strangers are refused now
+
+	id, err := r.Join("", "", p.Token, &namedClient{"reloaded"})
+	if err != nil || id != ids[0] {
+		t.Fatalf("token rejoin = %q, %v; want %q", id, err, ids[0])
+	}
+	if len(p.Hand) != hand || !p.Connected {
+		t.Fatalf("seat state lost: hand %d→%d connected=%v", hand, len(p.Hand), p.Connected)
+	}
+	if _, err := r.Join("", "", "bogus", &namedClient{}); err == nil {
+		t.Fatal("unknown token must not get a seat mid-game")
+	}
+}
+
+func TestStaleSocketCloseKeepsNewConnection(t *testing.T) {
+	r, ids := testRoom(t, 2)
+	p := r.findLocked(ids[0])
+	old, fresh := &namedClient{"old"}, &namedClient{"new"}
+	r.conns[p.ID] = old
+	if _, err := r.Join("", "", p.Token, fresh); err != nil {
+		t.Fatal(err)
+	}
+	r.Leave(p.ID, old) // the pre-reload socket finally closes
+	if r.conns[p.ID] != fresh {
+		t.Fatal("old socket's close detached the reloaded connection")
+	}
+	r.expireSeat(p.ID) // grace timer firing must not drop a live seat
+	if !p.Connected {
+		t.Fatal("seat dropped while a connection is attached")
 	}
 }

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState, type ReactNode } from "react";
 import type { Card, FighterView, RoundEventView, State } from "./types";
 
 // ---------- shared bits ----------
@@ -80,46 +80,71 @@ export function ChampionCard({ champ, label, hero }: { champ: { name: string; ca
   );
 }
 
-// FadeImg: shimmer skeleton until the image actually decodes, then fades in.
-export function FadeImg({ src, alt, ph }: { src: string; alt: string; ph: string }) {
-  const [loaded, setLoaded] = useState(false);
-  useEffect(() => setLoaded(false), [src]); // new image → re-skeleton
-  if (!src) return <div className="beatskel"><div className="paintspin">🎨</div><span>{ph}</span></div>;
+// Theater: the fight is a play. A gold proscenium frames the generated image;
+// velvet curtains stay shut until the image has actually decoded (or while the
+// judges deliberate), then part. Narration runs as a playbill line under the
+// stage; anything passed as children sits on the apron in front of it.
+export function Theater({
+  src,
+  caption,
+  closedLabel,
+  hold,
+  children,
+}: {
+  src?: string;
+  caption?: string;
+  closedLabel: string;
+  hold?: boolean; // force the curtains shut (judges scoring, etc.)
+  children?: ReactNode;
+}) {
+  const [loadedSrc, setLoadedSrc] = useState("");
+  const open = !!src && loadedSrc === src && !hold;
   return (
-    <div className={"imgwrap" + (loaded ? " loaded" : "")}>
-      <img src={src} alt={alt} onLoad={() => setLoaded(true)} />
-      {!loaded && <div className="beatskel cover"><div className="paintspin">🎨</div><span>{ph}</span></div>}
+    <div className="theater">
+      <div className="proscenium">
+        <div className="valance" />
+        <div className="stageview">
+          {src && <img key={src} src={src} alt="" onLoad={() => setLoadedSrc(src)} />}
+          <div className={"curtain left" + (open ? " open" : "")} />
+          <div className={"curtain right" + (open ? " open" : "")} />
+          {!open && (
+            <div className="curtaincall">
+              <span className="spot">🎭</span>
+              <span>{closedLabel}</span>
+            </div>
+          )}
+        </div>
+        <div className="footlights" />
+      </div>
+      {(caption || children) && (
+        <div className="apron">
+          {children}
+          {caption && <p className={"playbill" + (open ? " lit" : "") + (children ? " after" : "")}>{caption}</p>}
+        </div>
+      )}
     </div>
   );
 }
 
-// Full-width beat: generated fight image with narration under it.
-export function Beat({ ev }: { ev: RoundEventView }) {
-  return (
-    <figure className="beat">
-      <FadeImg src={ev.imageUrl} alt={`round ${ev.round}`} ph="painting the scene…" />
-      <figcaption>{ev.text}</figcaption>
-    </figure>
-  );
-}
-
-// BeatDeck: one beat at a time with prev/next — a slideshow, not a stack.
-export function BeatDeck({ events }: { events: RoundEventView[] }) {
+// BeatDeck: one beat at a time on the theater stage, with prev/next.
+export function BeatDeck({ events, hold, closedLabel, children }: { events: RoundEventView[]; hold?: boolean; closedLabel?: string; children?: ReactNode }) {
   const [idx, setIdx] = useState(-1); // -1 = latest
   const cur = idx === -1 || idx >= events.length ? events.length - 1 : idx;
   const ev = events[cur];
   if (!ev) return null;
   return (
-    <div>
-      <Beat ev={ev} />
+    <>
+      <Theater src={ev.imageUrl} caption={ev.text} hold={hold} closedLabel={closedLabel ?? `painting act ${ev.round}…`}>
+        {children}
+      </Theater>
       {events.length > 1 && (
         <div className="beatnav">
-          <button className="link" disabled={cur <= 0} onClick={() => setIdx(cur - 1)}>◀ prev round</button>
-          <span className="sub">round {ev.round} of {events.length}</span>
-          <button className="link" disabled={cur >= events.length - 1} onClick={() => setIdx(cur + 1)}>next round ▶</button>
+          <button className="link" disabled={cur <= 0} onClick={() => setIdx(cur - 1)}>◀ act {cur}</button>
+          <span className="sub">act {ev.round} of {events.length}</span>
+          <button className="link" disabled={cur >= events.length - 1} onClick={() => setIdx(cur + 1)}>act {cur + 2} ▶</button>
         </div>
       )}
-    </div>
+    </>
   );
 }
 
@@ -141,14 +166,32 @@ export function FighterCard({ f }: { f: FighterView }) {
   );
 }
 
-export function Arena({ state }: { state: State }) {
+// Billing: the marquee over the stage — A on the left, VS medallion (with the
+// act/location under it), B on the right, each with their latest move.
+export function Billing({ state, center }: { state: State; center?: ReactNode }) {
   const f = state.fight;
   if (!f) return null;
+  const side = (fv: FighterView, cls: string) => {
+    const last = fv.moves[fv.moves.length - 1];
+    return (
+      <div className={"bill " + cls + (fv.playerId === state.you ? " me" : "")}>
+        {fv.avatarUrl && <img className="av big" src={fv.avatarUrl} alt="" />}
+        <div className="billtext">
+          <small>{fv.name}{fv.playerId === state.you ? " (you)" : ""}</small>
+          <b>{fv.champion?.name ?? "forging…"}</b>
+          {last && <span className="lastmove">{last.fate ? "🎲" : "⚡"} {last.verb}</span>}
+        </div>
+      </div>
+    );
+  };
   return (
-    <div className="arena slim">
-      <FighterCard f={f.a} />
-      <div className="vs">VS</div>
-      <FighterCard f={f.b} />
+    <div className="billing">
+      {side(f.a, "a")}
+      <div className="billcenter">
+        <div className="vsmedal">VS</div>
+        {center}
+      </div>
+      {side(f.b, "b")}
     </div>
   );
 }

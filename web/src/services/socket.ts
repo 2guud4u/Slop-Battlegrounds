@@ -4,6 +4,7 @@ export interface JoinOpts {
   room?: string;
   name: string;
   avatar?: string;
+  token?: string; // seat key from a previous session
   llmProvider?: string;
   llmKey?: string;
   imageProvider?: string;

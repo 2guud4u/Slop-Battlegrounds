@@ -60,6 +60,7 @@ type Player struct {
 	Passed    bool            `json:"-"`
 	Fought    bool            `json:"-"` // has fought at least once — gates the shop
 	Templates map[string]bool `json:"-"` // owned forge-template ids
+	Token     string          `json:"-"` // secret seat key — reconnects by token, sent only to the owner
 }
 
 type Bet struct {

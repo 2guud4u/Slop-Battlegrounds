@@ -22,44 +22,46 @@ export function JoinScreen({ onJoin, error }: { onJoin: (o: JoinOpts) => void; e
   }, [error]);
 
   return (
-    <div className="join">
-      <h1>⚔️ Slop Battlegrounds</h1>
-      <p className="sub">Build a champion. Judge by AI. Bet on slop.</p>
-      <form
-        onSubmit={(e) => {
-          e.preventDefault();
-          if (joining) return;
-          setJoining(true);
-          onJoin({
-            name: "",
-            room: room.trim() || undefined,
-            llmKey: llmKey.trim() || undefined,
-            imageKey: geminiKey.trim() || undefined,
-            imageAccount: cfAccount.trim() || undefined,
-            imageToken: cfToken.trim() || undefined,
-          });
-        }}
-      >
-        <input placeholder="Room code (empty = create)" value={room} onChange={(e) => setRoom(e.target.value)} autoFocus />
-        <button type="button" className="link" onClick={() => setShowKeys(!showKeys)}>
-          {showKeys ? "▾ hide" : "▸"} host API keys (optional)
-        </button>
-        {showKeys && (
-          <div className="keys">
-            <p className="hint">
-              Creating a room? Paste your own keys — otherwise the server defaults (or mocks) are used.
-            </p>
-            <input placeholder="Groq API key (LLM judge)" value={llmKey} onChange={(e) => setLlmKey(e.target.value)} />
-            <input placeholder="Gemini API key (image gen — easiest)" value={geminiKey} onChange={(e) => setGeminiKey(e.target.value)} />
-            <input placeholder="Cloudflare account ID (image gen)" value={cfAccount} onChange={(e) => setCfAccount(e.target.value)} />
-            <input placeholder="Cloudflare API token (image gen)" value={cfToken} onChange={(e) => setCfToken(e.target.value)} />
-          </div>
-        )}
-        <button type="submit" disabled={joining}>
-          {joining ? (room.trim() ? "Joining room…" : "Creating room…") : room.trim() ? "Join room" : "Create room"}
-        </button>
-      </form>
-      {error && <p className="err">{error}</p>}
+    <div className="landing">
+      <div className="join">
+        <h1>⚔️ Slop Battlegrounds</h1>
+        <p className="sub">Build a champion. Judge by AI. Bet on slop.</p>
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (joining) return;
+            setJoining(true);
+            onJoin({
+              name: "",
+              room: room.trim() || undefined,
+              llmKey: llmKey.trim() || undefined,
+              imageKey: geminiKey.trim() || undefined,
+              imageAccount: cfAccount.trim() || undefined,
+              imageToken: cfToken.trim() || undefined,
+            });
+          }}
+        >
+          <input placeholder="Room code (empty = create)" value={room} onChange={(e) => setRoom(e.target.value)} autoFocus />
+          <button type="button" className="link" onClick={() => setShowKeys(!showKeys)}>
+            {showKeys ? "▾ hide" : "▸"} host API keys (optional)
+          </button>
+          {showKeys && (
+            <div className="keys">
+              <p className="hint">
+                Creating a room? Paste your own keys — otherwise the server defaults (or mocks) are used.
+              </p>
+              <input placeholder="Groq API key (LLM judge)" value={llmKey} onChange={(e) => setLlmKey(e.target.value)} />
+              <input placeholder="Gemini API key (image gen — easiest)" value={geminiKey} onChange={(e) => setGeminiKey(e.target.value)} />
+              <input placeholder="Cloudflare account ID (image gen)" value={cfAccount} onChange={(e) => setCfAccount(e.target.value)} />
+              <input placeholder="Cloudflare API token (image gen)" value={cfToken} onChange={(e) => setCfToken(e.target.value)} />
+            </div>
+          )}
+          <button type="submit" disabled={joining}>
+            {joining ? (room.trim() ? "Joining room…" : "Creating room…") : room.trim() ? "Join room" : "Create room"}
+          </button>
+        </form>
+        {error && <p className="err">{error}</p>}
+      </div>
     </div>
   );
 }

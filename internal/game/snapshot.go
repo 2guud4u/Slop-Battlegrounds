@@ -59,6 +59,7 @@ type stateMsg struct {
 	Phase     Phase           `json:"phase"`
 	Round     int             `json:"round"`
 	You       string          `json:"you"`
+	Token     string          `json:"token"` // viewer's own seat key — stored client-side for reload
 	HostID    string          `json:"hostId"`
 	Players   []playerView    `json:"players"`
 	WinnerID  string          `json:"winnerId"` // set when phase == "over"
@@ -84,6 +85,13 @@ func (r *Room) broadcastLocked() {
 	}
 }
 
+func (r *Room) tokenLocked(pid string) string {
+	if p := r.findLocked(pid); p != nil {
+		return p.Token
+	}
+	return ""
+}
+
 func (r *Room) snapshotLocked(youID string) stateMsg {
 	msg := stateMsg{
 		Level:      r.Complexity,
@@ -92,6 +100,7 @@ func (r *Room) snapshotLocked(youID string) stateMsg {
 		Phase:      r.Phase,
 		Round:      r.Round,
 		You:        youID,
+		Token:      r.tokenLocked(youID),
 		HostID:     r.hostID,
 		WinnerID:   r.WinnerID,
 		RevealAt:   r.revealAt.UnixMilli(),

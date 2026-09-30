@@ -2,6 +2,7 @@ package llm
 
 import (
 	"fmt"
+	"math/rand/v2"
 	"strings"
 
 	"slop-battlegrounds/internal/game"
@@ -94,23 +95,29 @@ Writing level: %s
 Respond with strict JSON only:
 {"a":["action","action","action"],"b":["action","action","action"]}`
 
-const locationsTmpl = `Invent %d absurd, funny battlegrounds for a ridiculous monster fighting game.
+const locationsTmpl = `You are the location scout for a legendary fight to the death between two
+monstrous champions. Invent %d EPIC battlegrounds — the kind of arena a movie
+trailer would linger on before the final showdown.
 
-Short noun phrases, 3-7 words each. Places where a fight would be funny
-and dangerous.
+Short noun phrases, 3-8 words each. Every place must be:
+- Grand in scale: towering, vast, ancient, or cosmic.
+- Dangerous in itself: lava, storms, collapsing ruins, crushing depths, sheer drops.
+- Easy to picture in one glance — a clear, specific landmark, not vague fog.
+
+Build exactly one place from each of these themes, in order:
+%s
+Make each one a fresh, specific landmark — avoid stock phrases like
+"titanic basalt", "crystal citadel", or "abyssal kelp".
 
 STYLE:
-- Use concrete, recognizable objects and places.
-- Keep them easy to visualize.
-- Prefer one funny idea over several stacked ideas.
-- Avoid elaborate fantasy descriptions.
-- Avoid adjective chains.
-- No poetic language.
-- No numbers, no quotes.
+- Concrete nouns over adjective chains (max one adjective per place).
+- No generic words like "arena", "battlefield", or "realm" on their own.
+- No mundane everyday places (malls, offices, kitchens, parking lots).
+- No numbers, no quotes, no proper names from existing franchises.
 
 Writing level: %s
 
-Respond with strict JSON only: {"locs":["place","place","place","place"]}`
+Respond with strict JSON only: {"locs":["place", ...]} with exactly %d entries.`
 
 const sceneTmpl = `You are a funny, slightly unhinged ringside announcer who speaks like a real
 person. The fight takes place in %q — a battle to the death. Champion A is %q;
@@ -139,9 +146,22 @@ func OptionsPrompt(req game.JudgeRequest) string {
 		req.Round, historyOf(req.History), levelGuide(req.Level))
 }
 
-// LocationsPrompt asks for n battlegrounds as JSON.
+// battlegroundThemes seeds LocationsPrompt so consecutive drafts don't get the
+// same four venues — the model leans on stock phrases without a nudge.
+var battlegroundThemes = []string{
+	"volcano or lava", "frozen wasteland or glacier", "sky-high or floating", "deep ocean or sunken",
+	"ruined ancient empire", "outer space or celestial", "colossal machine or factory", "raging storm",
+	"haunted or cursed", "giant creature's body or skeleton", "jungle or overgrown", "desert or sandstorm",
+	"underground caverns", "collapsing megacity", "clockwork or time", "enchanted forest",
+}
+
+// LocationsPrompt asks for n battlegrounds as JSON, one per random theme.
 func LocationsPrompt(n int, level string) string {
-	return fmt.Sprintf(locationsTmpl, n, levelGuide(level))
+	themes := make([]string, 0, n)
+	for _, i := range rand.Perm(len(battlegroundThemes))[:min(n, len(battlegroundThemes))] {
+		themes = append(themes, "- "+battlegroundThemes[i])
+	}
+	return fmt.Sprintf(locationsTmpl, n, strings.Join(themes, "\n"), levelGuide(level), n)
 }
 
 // ScenePrompt asks for a plain-text 2-sentence arena intro.

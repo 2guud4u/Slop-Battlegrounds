@@ -1,7 +1,7 @@
 import { useState } from "react";
 import type { Send } from "../services/socket";
 import type { State } from "./types";
-import { Arena, BeatDeck, FadeImg, FighterCard, nameOf } from "./shared";
+import { BeatDeck, Billing, FighterCard, nameOf, Theater } from "./shared";
 
 export function Betting({ state, you, send }: { state: State; you: string; send: Send }) {
   const f = state.fight;
@@ -16,12 +16,7 @@ export function Betting({ state, you, send }: { state: State; you: string; send:
     <section className="pane">
       <h2>Betting</h2>
       {f.location && <p className="locbanner">📍 {f.location}</p>}
-      {(f.scene || f.sceneImage) && (
-        <figure className="beat">
-          <FadeImg src={f.sceneImage} alt="the arena" ph="🎨 painting the scene…" />
-          {f.scene && <figcaption>{f.scene}</figcaption>}
-        </figure>
-      )}
+      <Theater src={f.sceneImage} caption={f.scene} closedLabel={f.scene ? "the stagehands are painting the set…" : "the judges are writing the opening act…"} />
       <div className="arena">
         <FighterCard f={f.a} />
         <div className="vs">VS</div>
@@ -56,51 +51,59 @@ export function Combat({ state, you, send }: { state: State; you: string; send: 
   const me = isFighter ? (f.a.playerId === you ? f.a : f.b) : null;
   const acted = !!me && me.moves.some((m) => m.round === f.round);
   const hasBeats = f.events.length > 0;
+  const scoring = `the judges are scoring act ${f.round}…`;
+
+  // What sits on the apron — the fighter's hand of moves, or a stage note.
+  const apron = (
+    <>
+      {!f.resolving && isFighter && !acted && (
+        <>
+          <p className="cue">
+            {f.myOptions && f.myOptions.length > 0
+              ? `Your cue — play ${me!.champion?.name ?? me!.name}'s move:`
+              : "🎬 the judges are drafting your moves…"}
+          </p>
+          <div className="acts">
+            {f.myOptions?.map((o, i) => (
+              <button key={i} className="opt" onClick={() => send({ type: "verb", verb: o })}>
+                {o}
+              </button>
+            ))}
+            <button className="opt fate" onClick={() => send({ type: "pass" })}>
+              🎲 Let fate decide
+            </button>
+          </div>
+        </>
+      )}
+      {!f.resolving && isFighter && acted && (
+        <p className="cue">{f.fate?.[you] === f.round ? "🎲 Fate will decide." : "Move committed — waiting on your opponent."}</p>
+      )}
+      {!f.resolving && !isFighter && <p className="cue">The battle rages…</p>}
+      {f.resolving && <p className="cue">⚔️ {scoring}</p>}
+    </>
+  );
+
   return (
     <section className="pane battle">
-      <header className="bhead">
-        <h2>Fight! — Round {f.round}/3</h2>
-        {f.location && <span className="locbanner">📍 {f.location}</span>}
-      </header>
-      <div className="bcols">
-        <div className="bmain">
-          {!hasBeats && f.scene && (
-            <figure className="beat">
-              <FadeImg src={f.sceneImage} alt="the arena" ph="the judges are painting the arena…" />
-              <figcaption>{f.scene}</figcaption>
-            </figure>
-          )}
-          {hasBeats ? <BeatDeck events={f.events} /> : !f.scene && <div className="beatph big"><div className="paintspin">🎬</div><span>the judges are setting the scene…</span></div>}
-          {f.resolving && <p className="sub">⚔️ the judges are scoring round {f.round}…</p>}
-        </div>
-        <aside className="blog">
-          <Arena state={state} />
-          <div className="acts">
-            {!f.resolving && isFighter && !acted && (
-              <>
-                {f.myOptions && f.myOptions.length > 0 ? (
-                  <>
-                    <p className="sub">Pick {me!.champion?.name ?? me!.name}'s move — or let fate decide:</p>
-                    {f.myOptions.map((o, i) => (
-                      <button key={i} className="opt" onClick={() => send({ type: "verb", verb: o })}>
-                        {o}
-                      </button>
-                    ))}
-                  </>
-                ) : (
-                  <p className="sub">🎬 the judges are drafting your moves…</p>
-                )}
-                <button className="fate" onClick={() => send({ type: "pass" })}>🎲 Let fate decide</button>
-              </>
-            )}
-            {!f.resolving && isFighter && acted && (
-              <p className="sub">
-                {f.fate?.[you] === f.round ? "🎲 Fate will decide." : "Move committed — waiting on your opponent."}
-              </p>
-            )}
-            {!f.resolving && !isFighter && <p className="sub">The battle rages…</p>}
-          </div>
-        </aside>
+      <Billing
+        state={state}
+        center={<span className="billact">Act {f.round} of 3{f.location && <small>📍 {f.location}</small>}</span>}
+      />
+      <div className="bstage">
+        {hasBeats ? (
+          <BeatDeck events={f.events} hold={f.resolving} closedLabel={f.resolving ? scoring : undefined}>
+            {apron}
+          </BeatDeck>
+        ) : (
+          <Theater
+            src={f.sceneImage}
+            caption={f.scene}
+            hold={f.resolving}
+            closedLabel={f.resolving ? scoring : f.scene ? "the stagehands are painting the set…" : "the judges are writing the opening act…"}
+          >
+            {apron}
+          </Theater>
+        )}
       </div>
     </section>
   );
@@ -117,16 +120,12 @@ export function VerdictView({ state, send }: { state: State; send: Send }) {
 
   return (
     <section className="pane battle">
-      <header className="bhead">
-        <h2>Verdict</h2>
-        {f.location && <span className="locbanner">📍 {f.location}</span>}
-      </header>
-      <div className="bcols">
-        <div className="bmain scroll">
-          <BeatDeck events={f.events} />
-        </div>
-        <aside className="blog">
-          <Arena state={state} />
+      <Billing
+        state={state}
+        center={<span className="billact">Verdict{f.location && <small>📍 {f.location}</small>}</span>}
+      />
+      <div className="bstage">
+        <BeatDeck events={f.events}>
           {v && (
             <div className="verdict">
               {f.draw ? <h3>🤝 Draw!</h3> : <h3>🏆 {winnerName} wins!</h3>}
@@ -137,7 +136,7 @@ export function VerdictView({ state, send }: { state: State; send: Send }) {
               <p className="sub">{readyCount}/{connected.length} ready</p>
             </div>
           )}
-        </aside>
+        </BeatDeck>
       </div>
     </section>
   );
