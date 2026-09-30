@@ -83,7 +83,8 @@ export function ChampionCard({ champ, label, hero }: { champ: { name: string; ca
 // Theater: the fight is a play. A gold proscenium frames the generated image;
 // velvet curtains stay shut until the image has actually decoded (or while the
 // judges deliberate), then part. Narration runs under the stage; `side` (the
-// fighter's moves, the verdict) sits in the wings to the right of it.
+// fighter's moves, the verdict) sits in the wings to the right of it and is
+// told whether the curtain is up, so the next act's cue waits for the image.
 export function Theater({
   src,
   caption,
@@ -95,7 +96,7 @@ export function Theater({
   caption?: string;
   closedLabel: string;
   hold?: boolean; // force the curtains shut (judges scoring, etc.)
-  side?: ReactNode;
+  side?: (curtainUp: boolean) => ReactNode;
 }) {
   const [loadedSrc, setLoadedSrc] = useState("");
   const open = !!src && loadedSrc === src && !hold;
@@ -123,13 +124,13 @@ export function Theater({
           </div>
         )}
       </div>
-      {side && <aside className="wings">{side}</aside>}
+      {side && <aside className="wings">{side(open)}</aside>}
     </div>
   );
 }
 
 // BeatDeck: one beat at a time on the theater stage, with prev/next.
-export function BeatDeck({ events, hold, closedLabel, side }: { events: RoundEventView[]; hold?: boolean; closedLabel?: string; side?: ReactNode }) {
+export function BeatDeck({ events, hold, closedLabel, side }: { events: RoundEventView[]; hold?: boolean; closedLabel?: string; side?: (curtainUp: boolean) => ReactNode }) {
   const [idx, setIdx] = useState(-1); // -1 = latest
   const cur = idx === -1 || idx >= events.length ? events.length - 1 : idx;
   const ev = events[cur];

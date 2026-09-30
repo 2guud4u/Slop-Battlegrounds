@@ -117,6 +117,14 @@ export function HandDock({ state, send }: { state: State; send: Send }) {
   const draftMode = state.phase === "draft" && !drafted
     && !!state.fight && (state.fight.a.playerId === state.you || state.fight.b.playerId === state.you);
 
+  // HandDock lives across phases — a new draft round (or the champion landing)
+  // clears the staged slots so spent cards don't linger and the forge unlocks.
+  const draftKey = state.phase === "draft" ? state.round : -1;
+  useEffect(() => {
+    setFilled({});
+    setForging(false);
+  }, [draftKey, drafted]);
+
   if (!draftMode || !canForge(state)) return null; // only fighters forge
   const order: Record<string, number> = { noun: 0, pron: 1, adj: 2, verb: 3, adv: 4, prep: 5, conj: 6, inter: 7 };
   const tmpl = state.templates.find((t) => t.id === tmplID) ?? state.templates.find((t) => t.id === "adj_noun") ?? state.templates[0];

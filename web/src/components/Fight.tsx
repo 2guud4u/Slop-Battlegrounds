@@ -54,9 +54,14 @@ export function Combat({ state, you, send }: { state: State; you: string; send: 
   const scoring = `the judges are scoring act ${f.round}…`;
 
   // What sits in the wings — the fighter's hand of moves, or a stage note.
-  const wings = (
+  // The next act's moves wait in the wings until the curtain rises on the
+  // freshly painted scene.
+  const wings = (curtainUp: boolean) => (
     <>
-      {!f.resolving && isFighter && !acted && (
+      {!f.resolving && isFighter && !acted && !curtainUp && (
+        <p className="cue">🎭 Places — your cue comes when the curtain rises…</p>
+      )}
+      {!f.resolving && isFighter && !acted && curtainUp && (
         <>
           <p className="cue">
             {f.myOptions && f.myOptions.length > 0
@@ -125,16 +130,18 @@ export function VerdictView({ state, send }: { state: State; send: Send }) {
         <BeatDeck
           events={f.events}
           side={
-            v && (
-              <div className="verdict">
-                {f.draw ? <h3>🤝 Draw!</h3> : <h3>🏆 {winnerName} wins!</h3>}
-                <p>{v.reason}</p>
-                <button className="cta" disabled={meReady} onClick={() => send({ type: "pass" })}>
-                  {meReady ? "Waiting for others…" : "Continue →"}
-                </button>
-                <p className="sub">{readyCount}/{connected.length} ready</p>
-              </div>
-            )
+            v
+              ? () => (
+                  <div className="verdict">
+                    {f.draw ? <h3>🤝 Draw!</h3> : <h3>🏆 {winnerName} wins!</h3>}
+                    <p>{v.reason}</p>
+                    <button className="cta" disabled={meReady} onClick={() => send({ type: "pass" })}>
+                      {meReady ? "Waiting for others…" : "Continue →"}
+                    </button>
+                    <p className="sub">{readyCount}/{connected.length} ready</p>
+                  </div>
+                )
+              : undefined
           }
         />
       </div>
