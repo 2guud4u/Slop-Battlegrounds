@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import type { Send } from "./ws";
+import { useNow } from "../hooks/useNow";
+import type { Send } from "../services/socket";
 import type { Card, State } from "./types";
 import { canForge, isLiteral, Pattern, ChampionCard } from "./shared";
 
@@ -10,7 +11,7 @@ export function Draft({ state, me, send }: { state: State; me: string; send: Sen
   const done = !!meP?.champion;
   const broke = isFighter && !done && !canForge(state); // hand can't cover any owned template
   const [forging, setForging] = useState(false);
-  const [now, setNow] = useState(Date.now);
+  const now = useNow(state.revealAt ? 200 : 0);
   const revealing = !!f && state.revealAt > now;
 
   useEffect(() => {
@@ -23,11 +24,6 @@ export function Draft({ state, me, send }: { state: State; me: string; send: Sen
   }, [done]);
 
   // Tick while the reveal window is open — the stage steps on its own.
-  useEffect(() => {
-    if (!state.revealAt) return;
-    const t = setInterval(() => setNow(Date.now()), 200);
-    return () => clearInterval(t);
-  }, [state.revealAt]);
 
   return (
     <section className="pane">

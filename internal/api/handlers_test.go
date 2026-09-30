@@ -1,4 +1,4 @@
-package server
+package api
 
 import (
 	"context"
@@ -10,6 +10,7 @@ import (
 	"github.com/coder/websocket"
 	"github.com/coder/websocket/wsjson"
 
+	"slop-battlegrounds/internal/config"
 	"slop-battlegrounds/internal/game"
 )
 
@@ -137,7 +138,7 @@ func pickCards(hand []game.Card, kind string) []string {
 }
 
 func TestFullGameLoop(t *testing.T) {
-	hub := NewHub(Defaults{GenDir: t.TempDir()})
+	hub := NewHub(config.Defaults{GenDir: t.TempDir()})
 	srv := httptest.NewServer(hub.Handler(nil))
 	defer srv.Close()
 	wsURL := "ws" + strings.TrimPrefix(srv.URL, "http") + "/ws"
@@ -259,7 +260,7 @@ func TestFullGameLoop(t *testing.T) {
 }
 
 func TestBettingWithThreePlayers(t *testing.T) {
-	hub := NewHub(Defaults{GenDir: t.TempDir()})
+	hub := NewHub(config.Defaults{GenDir: t.TempDir()})
 	srv := httptest.NewServer(hub.Handler(nil))
 	defer srv.Close()
 	wsURL := "ws" + strings.TrimPrefix(srv.URL, "http") + "/ws"
@@ -322,7 +323,7 @@ func TestBettingWithThreePlayers(t *testing.T) {
 	}
 }
 func TestDrawAfterThreeRounds(t *testing.T) {
-	hub := NewHub(Defaults{GenDir: t.TempDir()})
+	hub := NewHub(config.Defaults{GenDir: t.TempDir()})
 	srv := httptest.NewServer(hub.Handler(nil))
 	defer srv.Close()
 	wsURL := "ws" + strings.TrimPrefix(srv.URL, "http") + "/ws"

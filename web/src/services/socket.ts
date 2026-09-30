@@ -1,4 +1,4 @@
-import type { State } from "./types";
+import type { State } from "../components/types";
 
 export interface JoinOpts {
   room?: string;

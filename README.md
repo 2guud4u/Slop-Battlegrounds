@@ -15,14 +15,9 @@ The game is like cards against humanity where players get cards with nouns, adje
 ## Running
 
 ```bash
-# backend (serves ws on :8080, static frontend if web/dist exists)
-go run ./cmd/server
-
-# frontend dev server (proxies /ws + /gen to :8080)
-cd web && npm install && npm run dev    # http://localhost:5173
-
-# prod-ish: build once, Go serves everything on :8080
-cd web && npm run build && cd .. && go run ./cmd/server
+make dev     # backend :8080 + Vite :5173 with hot reload
+make run     # build frontend, single Go binary serves everything on :8080
+make test    # internal/... tests
 ```
 
 ## AI providers
@@ -73,12 +68,17 @@ ws message; lobby-only, shown in the player bar and over fighter cards.
 ## Layout
 
 ```
-cmd/server/          entrypoint
-internal/game/       room state machine (lobby→draft→betting→combat→verdict)
-internal/llm/        groq.go, mock.go   (game.Judge)
-internal/image/      gemini, cloudflare, pollinations, picsum-mock (game.Imager)
-internal/server/     websocket hub, room registry, provider wiring
-web/                 vite + react + ts client
+cmd/server/           entrypoint — loads config, mounts the hub
+internal/config/      .env → typed Defaults (provider keys, GEN_DIR, ADDR)
+internal/api/         handlers.go (mux + ws + room registry),
+                      providers.go (judge/imager resolution), ws.go (send pump)
+internal/game/        room state machine (lobby→draft→betting→combat→verdict)
+internal/llm/         groq.go, mock.go   (game.Judge)
+internal/image/       gemini, cloudflare, pollinations, picsum-mock (game.Imager)
+web/src/components/   screens (Lobby, Draft, Fight, Shop) + shared widgets
+web/src/hooks/        useNow (tick), …
+web/src/services/     socket.ts — ws connect + join + send helpers
+web/src/styles/       style.css
 ```
 need llm to draft scenario
 need image generation

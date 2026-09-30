@@ -1,5 +1,5 @@
 import { useState } from "react";
-import type { Send } from "./ws";
+import type { Send } from "../services/socket";
 import type { State } from "./types";
 import { Arena, BeatDeck, FadeImg, FighterCard, nameOf } from "./shared";
 

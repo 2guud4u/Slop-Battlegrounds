@@ -1,4 +1,4 @@
-import type { Send } from "./ws";
+import type { Send } from "../services/socket";
 import type { State } from "./types";
 import { Pattern } from "./shared";
 

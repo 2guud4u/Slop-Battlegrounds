@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import type { JoinOpts, Send } from "./ws";
+import type { JoinOpts, Send } from "../services/socket";
 import type { AvatarInfo, State } from "./types";
 
 export function JoinScreen({ onJoin, error }: { onJoin: (o: JoinOpts) => void; error: string }) {

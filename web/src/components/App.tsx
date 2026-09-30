@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import { connect, type JoinOpts, type Send } from "./ws";
+import { connect, type JoinOpts, type Send } from "../services/socket";
 import type { State } from "./types";
 import { Rail } from "./shared";
 import { JoinScreen, Lobby } from "./Lobby";
