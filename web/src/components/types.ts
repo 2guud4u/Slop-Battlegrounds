@@ -105,7 +105,7 @@ export interface State {
   you: string;
   token: string; // this viewer's seat key — persisted for reload
   hostId: string;
-  level: string; // "middle" | "high" | "college"
+  level: string; // "youngboy" | "middle" | "high" | "college" | "shakespeare"
   players: PlayerView[];
   bets: BetView[];
   winnerId: string; // set when phase === "over"

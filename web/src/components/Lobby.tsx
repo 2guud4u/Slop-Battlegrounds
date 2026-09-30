@@ -2,6 +2,15 @@ import { useEffect, useState } from "react";
 import { fetchAvatars, preconnect, type JoinOpts, type Send } from "../services/socket";
 import type { AvatarInfo, State } from "./types";
 
+// Story levels, simplest → fanciest; keys match game.Level* on the server.
+const LEVELS = [
+  ["youngboy", "NBA YoungBoy"],
+  ["middle", "Middle School"],
+  ["high", "High School"],
+  ["college", "College"],
+  ["shakespeare", "Shakespeare"],
+] as const;
+
 export function JoinScreen({ onJoin, error }: { onJoin: (o: JoinOpts) => void; error: string }) {
   const [room, setRoom] = useState("");
   const [showKeys, setShowKeys] = useState(false);
@@ -121,15 +130,15 @@ export function Lobby({ state, isHost, send }: { state: State; isHost: boolean; 
       </div>
       <div className="lvlrow">
         <span className="sub">Story level:</span>
-        {(["middle", "high", "college"] as const).map((lv) => (
+        {LEVELS.map(([lv, label]) => (
           <button
             key={lv}
             className={"tchip" + (state.level === lv ? " sel" : "")}
             disabled={!isHost}
-            title={isHost ? "set narration complexity" : "host sets this"}
+            title={isHost ? "set narration style" : "host sets this"}
             onClick={() => send({ type: "level", message: lv })}
           >
-            {lv === "middle" ? "Middle School" : lv === "high" ? "High School" : "College"}
+            {label}
           </button>
         ))}
       </div>

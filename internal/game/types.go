@@ -27,11 +27,13 @@ const (
 	KindInter = "inter" // interjection — drawn from no pool, reserved
 )
 
-// Complexity levels for judge narration and action options.
+// Complexity levels for judge narration and action options, simplest first.
 const (
-	LevelMiddle  = "middle"
-	LevelHigh    = "high" // default
-	LevelCollege = "college"
+	LevelYoungboy    = "youngboy" // NBA YoungBoy — street slang, rap cadence
+	LevelMiddle      = "middle"
+	LevelHigh        = "high" // default
+	LevelCollege     = "college"
+	LevelShakespeare = "shakespeare" // Elizabethan verse
 )
 
 type Card struct {

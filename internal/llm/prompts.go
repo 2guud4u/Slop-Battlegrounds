@@ -50,7 +50,7 @@ moves and make the battleground matter when relevant.
 Then decide: is this fight DECIDED — one champion definitively killed,
 knocked out cold, or banished? Be stingy; a tie or close call is not decided.%s
 
-Writing level: %s
+Writing level (this sets the voice — follow it in every sentence): %s
 
 Respond with strict JSON only:
 {"text":"the narration","over":true|false,"winner":"a"|"b"|""}
@@ -90,7 +90,7 @@ ACTION STYLE:
   from a game menu.
 - PG-13.
 
-Writing level: %s
+Writing level (this sets the voice — follow it in every entry): %s
 
 Respond with strict JSON only:
 {"a":["action","action","action"],"b":["action","action","action"]}`
@@ -115,7 +115,7 @@ STYLE:
 - No mundane everyday places (malls, offices, kitchens, parking lots).
 - No numbers, no quotes, no proper names from existing franchises.
 
-Writing level: %s
+Writing level (this sets the voice — follow it in every entry): %s
 
 Respond with strict JSON only: {"locs":["place", ...]} with exactly %d entries.`
 
@@ -125,7 +125,7 @@ champion B is %q.
 Write exactly 2 punchy sentences setting the scene: the arena, the crowd, the
 champions' entrances. Simple conversational language, concrete images, short
 sentences — the absurd names carry the humor. No adjective chains, no
-fantasy-novel prose, PG-13. Writing level: %s
+fantasy-novel prose, PG-13. Writing level (this sets the voice — follow it in every sentence): %s
 Plain text only.`
 
 // RoundPrompt asks for one round's narration + decided/winner JSON.
@@ -137,7 +137,29 @@ func RoundPrompt(req game.JudgeRequest) string {
 	return fmt.Sprintf(roundTmpl,
 		req.Round, orLoc(req.Location), req.A.Name(), orNone(req.MovesA),
 		req.B.Name(), orNone(req.MovesB), historyOf(req.History),
-		announcerStyle, tail, levelGuide(req.Level))
+		styleFor(req.Level), tail, levelGuide(req.Level))
+}
+
+// styleFor: the plain-announcer rules fight a costume voice, so voice levels
+// get a voice brief in their place.
+func styleFor(level string) string {
+	switch level {
+	case game.LevelYoungboy:
+		return `IMPORTANT WRITING STYLE — NBA YOUNGBOY VOICE:
+- Every sentence is a rap-style bar in Baton Rouge street slang.
+- Sprinkle "on gang", "no cap", "slime", "brazy", "he folded", "we up".
+- Trash talk the loser, flex for the winner. Short, punchy, rhythmic.
+- Still say clearly what each champion actually did.
+- PG-13: no profanity, slurs, drugs, or real weapons.`
+	case game.LevelShakespeare:
+		return `IMPORTANT WRITING STYLE — SHAKESPEAREAN VOICE:
+- Every sentence in Early Modern English: thee, thou, thy, doth, hath, 'tis, forsooth, prithee.
+- Dramatic, theatrical, with Bardic insults ("thou puny, sodden varlet").
+- Iambic rhythm where it fits; one vivid image per sentence at most.
+- Still say clearly what each champion actually did.`
+	default:
+		return announcerStyle
+	}
 }
 
 // OptionsPrompt asks for 3 next actions per fighter as JSON.
@@ -191,12 +213,25 @@ func historyOf(h []string) string {
 }
 
 // levelGuide translates the room's complexity setting into prompt wording.
+// The two ends are voices, not just difficulty: they override the default
+// plain-announcer style where they conflict.
 func levelGuide(level string) string {
 	switch level {
+	case game.LevelYoungboy:
+		return "0 = narrate EVERY sentence like NBA YoungBoy spitting a hype verse: Baton Rouge street slang " +
+			"and rap cadence throughout — \"on gang\", \"no cap\", \"slime\", \"brazy\", \"we up\", \"he folded\" — " +
+			"trash talk, flexing, short punchy bars. Not a single plain-announcer sentence. " +
+			"Keep it PG-13: no profanity, slurs, drugs, or real weapons — cartoon violence only. " +
+			"This voice overrides the plain-announcer style rules above."
 	case game.LevelMiddle:
 		return "1 = very simple, conversational game writing. Shortest sentences."
 	case game.LevelCollege:
 		return "4 = highly expressive but still concise and readable — dry wit, no purple prose."
+	case game.LevelShakespeare:
+		return "5 = write as William Shakespeare: Early Modern English (thee, thou, doth, hath, 'tis, forsooth), " +
+			"dramatic flourishes, insults in the Bard's style, iambic rhythm where it fits. " +
+			"Keep the same length limits and keep the action clear. " +
+			"This voice overrides the plain-announcer style rules."
 	default: // high
 		return "3 = punchy announcer style with occasional colorful language."
 	}

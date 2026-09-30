@@ -53,8 +53,8 @@ export function Combat({ state, you, send }: { state: State; you: string; send: 
   const hasBeats = f.events.length > 0;
   const scoring = `the judges are scoring act ${f.round}…`;
 
-  // What sits on the apron — the fighter's hand of moves, or a stage note.
-  const apron = (
+  // What sits in the wings — the fighter's hand of moves, or a stage note.
+  const wings = (
     <>
       {!f.resolving && isFighter && !acted && (
         <>
@@ -91,18 +91,15 @@ export function Combat({ state, you, send }: { state: State; you: string; send: 
       />
       <div className="bstage">
         {hasBeats ? (
-          <BeatDeck events={f.events} hold={f.resolving} closedLabel={f.resolving ? scoring : undefined}>
-            {apron}
-          </BeatDeck>
+          <BeatDeck events={f.events} hold={f.resolving} closedLabel={f.resolving ? scoring : undefined} side={wings} />
         ) : (
           <Theater
             src={f.sceneImage}
             caption={f.scene}
             hold={f.resolving}
             closedLabel={f.resolving ? scoring : f.scene ? "the stagehands are painting the set…" : "the judges are writing the opening act…"}
-          >
-            {apron}
-          </Theater>
+            side={wings}
+          />
         )}
       </div>
     </section>
@@ -125,18 +122,21 @@ export function VerdictView({ state, send }: { state: State; send: Send }) {
         center={<span className="billact">Verdict{f.location && <small>📍 {f.location}</small>}</span>}
       />
       <div className="bstage">
-        <BeatDeck events={f.events}>
-          {v && (
-            <div className="verdict">
-              {f.draw ? <h3>🤝 Draw!</h3> : <h3>🏆 {winnerName} wins!</h3>}
-              <p>{v.reason}</p>
-              <button className="cta" disabled={meReady} onClick={() => send({ type: "pass" })}>
-                {meReady ? "Waiting for others…" : "Continue →"}
-              </button>
-              <p className="sub">{readyCount}/{connected.length} ready</p>
-            </div>
-          )}
-        </BeatDeck>
+        <BeatDeck
+          events={f.events}
+          side={
+            v && (
+              <div className="verdict">
+                {f.draw ? <h3>🤝 Draw!</h3> : <h3>🏆 {winnerName} wins!</h3>}
+                <p>{v.reason}</p>
+                <button className="cta" disabled={meReady} onClick={() => send({ type: "pass" })}>
+                  {meReady ? "Waiting for others…" : "Continue →"}
+                </button>
+                <p className="sub">{readyCount}/{connected.length} ready</p>
+              </div>
+            )
+          }
+        />
       </div>
     </section>
   );

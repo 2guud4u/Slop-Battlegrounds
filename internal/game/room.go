@@ -66,7 +66,7 @@ type Room struct {
 	decks         map[string][]string // shuffled draw piles per kind
 	locOptions    []string            // battleground candidates this round
 	locVotes      map[string]string   // playerID -> chosen option
-	Complexity    string              // narration level: LevelMiddle/LevelHigh/LevelCollege
+	Complexity    string              // narration level: one of the Level* constants
 	revealAt      time.Time           // both champions forged — draft lingers for the reveal
 	soldTemplates map[string]bool     // one copy per template — gone once bought
 

@@ -7,6 +7,9 @@ import { Draft, HandDock } from "./Draft";
 import { Betting, Combat, VerdictView } from "./Fight";
 import { GameOver, ShopView } from "./Shop";
 
+// Story levels that re-skin the whole room (class name = level key).
+const THEMED_LEVELS = new Set(["youngboy", "shakespeare"]);
+
 // Seat key saved per tab so a reload reclaims the same seat (hand, champion,
 // coins) — the server holds a dropped seat for a few seconds.
 const SEAT_KEY = "slop.seat";
@@ -67,7 +70,7 @@ export default function App() {
   const inFight = state.phase === "combat" || state.phase === "verdict";
 
   return (
-    <div className={"app" + (state.phase === "lobby" ? " backdrop" : "")}>
+    <div className={"app" + (THEMED_LEVELS.has(state.level) ? " " + state.level : state.phase === "lobby" ? " backdrop" : "")}>
       <header>
         <h1>⚔️ Slop Battlegrounds</h1>
         <span className="badge">

@@ -57,7 +57,7 @@ func (r *Room) levelLocked(playerID, level string) {
 		return
 	}
 	switch level {
-	case LevelMiddle, LevelHigh, LevelCollege:
+	case LevelYoungboy, LevelMiddle, LevelHigh, LevelCollege, LevelShakespeare:
 		r.Complexity = level
 	}
 }
