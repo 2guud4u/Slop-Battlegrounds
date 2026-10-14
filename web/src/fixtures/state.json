@@ -1,0 +1,150 @@
+{
+  "type": "state",
+  "room": "test",
+  "phase": "draft",
+  "round": 1,
+  "you": "p3",
+  "token": "",
+  "hostId": "p1",
+  "players": [
+    {
+      "id": "p1",
+      "name": "pa",
+      "avatar": "av",
+      "avatarUrl": "",
+      "coins": 100,
+      "wins": 0,
+      "connected": true,
+      "host": true,
+      "champion": null,
+      "drafted": false,
+      "handSize": 3,
+      "ready": false
+    },
+    {
+      "id": "p2",
+      "name": "pb",
+      "avatar": "",
+      "avatarUrl": "",
+      "coins": 100,
+      "wins": 0,
+      "connected": true,
+      "host": false,
+      "champion": null,
+      "drafted": false,
+      "handSize": 3,
+      "ready": false
+    },
+    {
+      "id": "p3",
+      "name": "pc",
+      "avatar": "",
+      "avatarUrl": "",
+      "coins": 100,
+      "wins": 0,
+      "connected": true,
+      "host": false,
+      "champion": null,
+      "drafted": false,
+      "handSize": 3,
+      "ready": false
+    }
+  ],
+  "winnerId": "",
+  "bets": [],
+  "fight": {
+    "a": {
+      "playerId": "p1",
+      "name": "pa",
+      "avatarUrl": "",
+      "champion": null,
+      "moves": []
+    },
+    "b": {
+      "playerId": "p2",
+      "name": "pb",
+      "avatarUrl": "",
+      "champion": null,
+      "moves": []
+    },
+    "location": "",
+    "scene": "",
+    "sceneImage": "",
+    "round": 1,
+    "fate": {},
+    "events": [],
+    "resolving": false,
+    "draw": false,
+    "myOptions": null,
+    "verdict": null
+  },
+  "hand": [
+    {
+      "id": "c1",
+      "text": "Fiery",
+      "kind": "adj"
+    },
+    {
+      "id": "c2",
+      "text": "Dragon",
+      "kind": "noun"
+    },
+    {
+      "id": "c3",
+      "text": "Suplexes",
+      "kind": "verb"
+    }
+  ],
+  "templates": [
+    {
+      "id": "solo_noun",
+      "name": "__noun__",
+      "cost": 0,
+      "example": "Dragon",
+      "slots": [
+        "noun"
+      ],
+      "sold": false
+    },
+    {
+      "id": "adj_noun",
+      "name": "__adj__ __noun__",
+      "cost": 0,
+      "example": "Fiery Dragon",
+      "slots": [
+        "adj",
+        "noun"
+      ],
+      "sold": false
+    },
+    {
+      "id": "adj_and_adj_noun",
+      "name": "__adj__ and __adj__ __noun__",
+      "cost": 0,
+      "example": "Fiery and Sharp Claws",
+      "slots": [
+        "adj",
+        "and",
+        "adj",
+        "noun"
+      ],
+      "sold": false
+    }
+  ],
+  "shop": null,
+  "revealAt": 0,
+  "packCost": 15,
+  "handMax": 7,
+  "minBet": 10,
+  "locOptions": [
+    "a",
+    "b",
+    "c",
+    "d"
+  ],
+  "locVotes": {
+    "a": 1
+  },
+  "myVote": "a",
+  "level": "high"
+}

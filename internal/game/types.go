@@ -87,6 +87,9 @@ type RoundEvent struct {
 	// Decided indicates the judge called a winner this round.
 	Decided  bool   `json:"decided"`
 	WinnerID string `json:"winnerId"`
+	// Degraded marks narration produced by the local fallback because the
+	// judge was unreachable — the client badges these beats.
+	Degraded bool `json:"degraded"`
 }
 
 type Verdict struct {

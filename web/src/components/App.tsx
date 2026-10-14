@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from "react";
-import { connect, type JoinOpts, type Send } from "../services/socket";
+import { connect, type JoinOpts, type Session } from "../services/socket";
 import type { State } from "./types";
 import { Rail } from "./shared";
+import { derive } from "../view";
 import { JoinScreen, Lobby } from "./Lobby";
 import { Draft, HandDock } from "./Draft";
 import { Betting, Combat, VerdictView } from "./Fight";
@@ -27,13 +28,13 @@ function savedSeat(): Seat | null {
 export default function App() {
   const [state, setState] = useState<State | null>(null);
   const [err, setErr] = useState("");
-  const sendRef = useRef<Send>(() => {});
+  const sessionRef = useRef<Session | null>(null);
   const [joined, setJoined] = useState(false);
   const [rejoining, setRejoining] = useState(() => !!savedSeat());
 
   const join = (opts: JoinOpts) => {
     setErr("");
-    sendRef.current = connect(
+    sessionRef.current = connect(
       opts,
       (s) => {
         sessionStorage.setItem(SEAT_KEY, JSON.stringify({ room: s.room, token: s.token }));
@@ -59,14 +60,15 @@ export default function App() {
     join({ name: "", room: seat.room, token: seat.token });
   }, []);
 
-  const send = (msg: Record<string, unknown>) => sendRef.current(msg);
+  const session = sessionRef.current!;
 
   if (!joined || !state) {
     if (rejoining) return <div className="landing"><div className="join"><p className="sub">Reclaiming your seat…</p></div></div>;
     return <JoinScreen onJoin={join} error={err} />;
   }
-  const me = state.players.find((p) => p.id === state.you);
-  const isHost = state.hostId === state.you;
+  const v = derive(state);
+  const me = v.me;
+  const isHost = v.isHost;
   const inFight = state.phase === "combat" || state.phase === "verdict";
 
   return (
@@ -80,16 +82,16 @@ export default function App() {
       <div className="frame">
         <Rail state={state} />
         <main className={"stage" + (inFight ? " fight" : "")}>
-          {state.phase === "lobby" && <Lobby state={state} isHost={isHost} send={send} />}
-          {state.phase === "draft" && me && <Draft state={state} me={me.id} send={send} />}
-          {state.phase === "betting" && <Betting state={state} you={state.you} send={send} />}
-          {state.phase === "combat" && <Combat state={state} you={state.you} send={send} />}
-          {state.phase === "verdict" && <VerdictView state={state} send={send} />}
-          {state.phase === "shop" && <ShopView state={state} send={send} />}
+          {state.phase === "lobby" && <Lobby state={state} isHost={isHost} session={session} />}
+          {state.phase === "draft" && me && <Draft state={state} me={me.id} session={session} />}
+          {state.phase === "betting" && <Betting state={state} you={state.you} session={session} />}
+          {state.phase === "combat" && <Combat state={state} session={session} />}
+          {state.phase === "verdict" && <VerdictView state={state} session={session} />}
+          {state.phase === "shop" && <ShopView state={state} session={session} />}
           {state.phase === "over" && <GameOver state={state} />}
         </main>
       </div>
-      <HandDock state={state} send={send} />
+      <HandDock state={state} session={session} />
       {err && <p className="err">{err}</p>}
     </div>
   );

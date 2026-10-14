@@ -18,55 +18,12 @@ type testClient struct {
 	t    *testing.T
 	conn *websocket.Conn
 	ctx  context.Context
-	ch   chan stateMsg
+	ch   chan game.StateMsg
 	you  string // filled on first state
 }
 
-// mirror of the server stateMsg wire shape
-type stateMsg struct {
-	Type    string     `json:"type"`
-	Message string     `json:"message"`
-	Room    string     `json:"room"`
-	Phase   game.Phase `json:"phase"`
-	Round   int        `json:"round"`
-	You     string     `json:"you"`
-	Players []struct {
-		ID       string         `json:"id"`
-		Coins    int            `json:"coins"`
-		Champion *game.Champion `json:"champion"`
-	} `json:"players"`
-	Bets []struct {
-		BettorID string `json:"bettorId"`
-		On       string `json:"on"`
-		Amount   int    `json:"amount"`
-	} `json:"bets"`
-	Fight *struct {
-		A struct {
-			PlayerID string `json:"playerId"`
-			Moves    []struct {
-				Verb string `json:"verb"`
-			} `json:"moves"`
-		} `json:"a"`
-		B struct {
-			PlayerID string `json:"playerId"`
-			Moves    []struct {
-				Verb string `json:"verb"`
-			} `json:"moves"`
-		} `json:"b"`
-		Location  string            `json:"location"`
-		Scene     string            `json:"scene"`
-		Round     int               `json:"round"`
-		Resolving bool              `json:"resolving"`
-		Events    []game.RoundEvent `json:"events"`
-		Draw      bool              `json:"draw"`
-		MyOptions []string          `json:"myOptions"`
-		Verdict   *game.Verdict     `json:"verdict"`
-	} `json:"fight"`
-	LocOptions []string             `json:"locOptions"`
-	Hand       []game.Card          `json:"hand"`
-	Templates  []game.ForgeTemplate `json:"templates"`
-	Shop       []game.ForgeTemplate `json:"shop"`
-}
+// stateMsg decodes the real wire type — the schema lives once in game.StateMsg.
+type stateMsg = game.StateMsg
 
 func dial(t *testing.T, url string, join JoinMsg) *testClient {
 	t.Helper()
@@ -233,11 +190,7 @@ func TestFullGameLoop(t *testing.T) {
 	// The verdict loser (105 coins) buys the 45-coin noun_with_adj_noun template.
 	shopC.send(game.ClientMsg{Type: "buy", Template: "noun_with_adj_noun"})
 	bs := shopC.wait(func(m stateMsg) bool { return len(m.Templates) == 4 })
-	var me struct {
-		ID       string         `json:"id"`
-		Coins    int            `json:"coins"`
-		Champion *game.Champion `json:"champion"`
-	}
+	var me game.PlayerView
 	for _, p := range bs.Players {
 		if p.ID == shopS.You {
 			me = p

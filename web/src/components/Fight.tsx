@@ -1,16 +1,18 @@
 import { useState } from "react";
-import type { Send } from "../services/socket";
+import type { Session } from "../services/socket";
 import type { State } from "./types";
 import { BeatDeck, Billing, FighterCard, nameOf, Theater } from "./shared";
+import { derive } from "../view";
 
-export function Betting({ state, you, send }: { state: State; you: string; send: Send }) {
+export function Betting({ state, you, session }: { state: State; you: string; session: Session }) {
   const f = state.fight;
-  const [amount, setAmount] = useState(10);
+  const [amount, setAmount] = useState(state.minBet);
   if (!f) return null;
-  const isFighter = f.a.playerId === you || f.b.playerId === you;
+  const v = derive(state);
+  const isFighter = v.isFighter;
   const myBet = state.bets.find((b) => b.bettorId === you);
-  const bettors = state.players.filter((p) => p.id !== f.a.playerId && p.id !== f.b.playerId);
   const doneCount = state.bets.length;
+  const bettors = state.players.filter((p) => p.id !== f.a.playerId && p.id !== f.b.playerId);
 
   return (
     <section className="pane">
@@ -30,25 +32,26 @@ export function Betting({ state, you, send }: { state: State; you: string; send:
         </p>
       ) : (
         <div className="betslip">
-          <input type="number" min={10} value={amount} onChange={(e) => setAmount(Number(e.target.value))} />
-          <button onClick={() => send({ type: "bet", on: f.a.playerId, amount })}>
+          <input type="number" min={state.minBet} value={amount} onChange={(e) => setAmount(Number(e.target.value))} />
+          <button onClick={() => session.bet(f.a.playerId, amount)}>
             Bet {f.a.champion?.name ?? f.a.name}
           </button>
-          <button onClick={() => send({ type: "bet", on: f.b.playerId, amount })}>
+          <button onClick={() => session.bet(f.b.playerId, amount)}>
             Bet {f.b.champion?.name ?? f.b.name}
           </button>
-          <button className="link" onClick={() => send({ type: "pass" })}>Pass</button>
+          <button className="link" onClick={() => session.pass()}>Pass</button>
         </div>
       )}
     </section>
   );
 }
 
-export function Combat({ state, you, send }: { state: State; you: string; send: Send }) {
+export function Combat({ state, session }: { state: State; session: Session }) {
   const f = state.fight;
   if (!f) return null;
-  const isFighter = f.a.playerId === you || f.b.playerId === you;
-  const me = isFighter ? (f.a.playerId === you ? f.a : f.b) : null;
+  const v = derive(state);
+  const isFighter = v.isFighter;
+  const me = v.fighter;
   const acted = !!me && me.moves.some((m) => m.round === f.round);
   const hasBeats = f.events.length > 0;
   const scoring = `the judges are scoring act ${f.round}…`;
@@ -70,18 +73,18 @@ export function Combat({ state, you, send }: { state: State; you: string; send: 
           </p>
           <div className="acts">
             {f.myOptions?.map((o, i) => (
-              <button key={i} className="opt" onClick={() => send({ type: "verb", verb: o })}>
+              <button key={i} className="opt" onClick={() => session.verb(o)}>
                 {o}
               </button>
             ))}
-            <button className="opt fate" onClick={() => send({ type: "pass" })}>
+            <button className="opt fate" onClick={() => session.pass()}>
               🎲 Let fate decide
             </button>
           </div>
         </>
       )}
       {!f.resolving && isFighter && acted && (
-        <p className="cue">{f.fate?.[you] === f.round ? "🎲 Fate will decide." : "Move committed — waiting on your opponent."}</p>
+        <p className="cue">{f.fate?.[state.you] === f.round ? "🎲 Fate will decide." : "Move committed — waiting on your opponent."}</p>
       )}
       {!f.resolving && !isFighter && <p className="cue">The battle rages…</p>}
       {f.resolving && <p className="cue">⚔️ {scoring}</p>}
@@ -111,14 +114,15 @@ export function Combat({ state, you, send }: { state: State; you: string; send: 
   );
 }
 
-export function VerdictView({ state, send }: { state: State; send: Send }) {
+export function VerdictView({ state, session }: { state: State; session: Session }) {
   const f = state.fight;
   if (!f) return null;
+  const dv = derive(state);
   const v = f.verdict;
   const winnerName = v && v.winnerId ? nameOf(state, v.winnerId) : "";
-  const connected = state.players.filter((p) => p.connected);
-  const readyCount = connected.filter((p) => p.ready).length;
-  const meReady = !!state.players.find((p) => p.id === state.you)?.ready;
+  const connected = dv.connected;
+  const readyCount = dv.readyCount;
+  const meReady = dv.meReady;
 
   return (
     <section className="pane battle">
@@ -135,7 +139,7 @@ export function VerdictView({ state, send }: { state: State; send: Send }) {
                   <div className="verdict">
                     {f.draw ? <h3>🤝 Draw!</h3> : <h3>🏆 {winnerName} wins!</h3>}
                     <p>{v.reason}</p>
-                    <button className="cta" disabled={meReady} onClick={() => send({ type: "pass" })}>
+                    <button className="cta" disabled={meReady} onClick={() => session.pass()}>
                       {meReady ? "Waiting for others…" : "Continue →"}
                     </button>
                     <p className="sub">{readyCount}/{connected.length} ready</p>

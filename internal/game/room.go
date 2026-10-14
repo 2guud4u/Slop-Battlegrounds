@@ -33,7 +33,8 @@ type Client interface {
 	SendJSON(v any) error
 }
 
-// ClientMsg is the union of all inbound ws messages (post-join).
+// ClientMsg is the union of all inbound ws messages (post-join). One field
+// per verb — nothing is overloaded.
 type ClientMsg struct {
 	Type     string   `json:"type"`
 	Cards    []string `json:"cards"`    // draft: ordered card ids filling the template's slots
@@ -43,10 +44,10 @@ type ClientMsg struct {
 	Amount   int      `json:"amount"`   // bet amount
 	Verb     string   `json:"verb"`     // combat: the option text the fighter picked
 	Avatar   string   `json:"avatar"`   // avatar key
-	Name2    string   `json:"name"`     // rename in lobby
+	Name     string   `json:"name"`     // rename in lobby
 	Loc      string   `json:"loc"`      // battleground vote (draft phase)
+	Level    string   `json:"level"`    // host: narration complexity
 	Card     string   `json:"card"`     // shop: discard this card id
-	Message  string   `json:"message"`  // error payloads outbound
 }
 
 type Room struct {
@@ -80,7 +81,7 @@ func New(code string, j Judge, img Imager) *Room {
 		Phase:         PhaseLobby,
 		conns:         map[string]Client{},
 		decks:         buildDecks(),
-		judge:         j,
+		judge:         Resilient{Inner: j, Room: code},
 		imager:        img,
 		Complexity:    LevelHigh,
 		soldTemplates: map[string]bool{},
@@ -225,11 +226,11 @@ func (r *Room) Handle(playerID string, m ClientMsg) {
 	case "avatar":
 		r.avatarLocked(playerID, m.Avatar)
 	case "name":
-		r.nameLocked(playerID, m.Name2)
+		r.nameLocked(playerID, m.Name)
 	case "loc":
 		r.locVoteLocked(playerID, m.Loc)
 	case "level":
-		r.levelLocked(playerID, m.Message)
+		r.levelLocked(playerID, m.Level)
 	case "pass":
 		r.passLocked(playerID)
 	case "buy":
@@ -246,7 +247,7 @@ func (r *Room) Handle(playerID string, m ClientMsg) {
 
 func (r *Room) sendErr(playerID, msg string) {
 	if c := r.conns[playerID]; c != nil {
-		_ = c.SendJSON(ClientMsg{Type: "error", Message: msg})
+		_ = c.SendJSON(StateMsg{Type: "error", Message: msg})
 	}
 }
 

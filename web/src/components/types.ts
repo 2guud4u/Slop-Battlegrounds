@@ -63,10 +63,6 @@ export interface FighterView {
   moves: MoveView[];
 }
 
-export interface EventView {
-  text: string;
-  imageUrl: string;
-}
 
 export interface RoundEventView {
   round: number;
@@ -74,12 +70,12 @@ export interface RoundEventView {
   imageUrl: string;
   decided: boolean;
   winnerId: string;
+  degraded?: boolean; // local fallback narration — judges unreachable
 }
 
 export interface VerdictView {
   winnerId: string;
   reason: string;
-  events: EventView[];
 }
 
 export interface FightView {
@@ -93,7 +89,7 @@ export interface FightView {
   resolving: boolean;
   events: RoundEventView[];
   draw: boolean;
-  myOptions: string[];
+  myOptions: string[] | null; // only set for the viewing fighter
   verdict: VerdictView | null;
 }
 
@@ -112,14 +108,12 @@ export interface State {
   fight: FightView | null;
   hand: Card[];
   templates: ForgeTemplate[]; // owned forge templates
-  shop: ForgeTemplate[];      // buyable, only in shop phase
-  revealAt: number;           // unix ms — draft reveal ends, betting opens
-  packCost: number;           // coins per 3-card pack
-  locOptions: string[];
+  shop: ForgeTemplate[] | null; // buyable, only in shop phase
+  revealAt: number;             // unix ms — draft reveal ends, betting opens (0 = unset)
+  packCost: number;             // coins per 3-card pack
+  handMax: number;              // hard cap — discard down to this
+  minBet: number;               // smallest spectator stake
+  locOptions: string[] | null;
   locVotes: Record<string, number>;
   myVote: string;
-}
-
-export interface ServerMsg extends State {
-  message?: string;
 }

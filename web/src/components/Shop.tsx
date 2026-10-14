@@ -1,4 +1,4 @@
-import type { Send } from "../services/socket";
+import type { Session } from "../services/socket";
 import type { State } from "./types";
 import { Pattern } from "./shared";
 
@@ -13,11 +13,11 @@ const packKinds: { kind: string; label: string; icon: string }[] = [
   { kind: "conj", label: "Conjunctions", icon: "🔗" },
 ];
 
-export function ShopView({ state, send }: { state: State; send: Send }) {
+export function ShopView({ state, session }: { state: State; session: Session }) {
   const me = state.players.find((p) => p.id === state.you);
   const owned = new Set(state.templates.map((t) => t.id));
   const coins = me?.coins ?? 0;
-  const over = state.hand.length - 7; // >0 → discard mode
+  const over = state.hand.length - state.handMax; // >0 → discard mode
   const done = !!me?.ready;
   const waiting = state.players.filter((p) => p.connected && !p.ready);
   return (
@@ -39,7 +39,7 @@ export function ShopView({ state, send }: { state: State; send: Send }) {
               key={c.id}
               className={"card " + c.kind}
               data-kind={c.kind}
-              onClick={() => send({ type: "discard", card: c.id })}
+              onClick={() => session.discard(c.id)}
             >
               {c.text}
             </button>
@@ -47,14 +47,14 @@ export function ShopView({ state, send }: { state: State; send: Send }) {
         </div>
       ) : !done && (
         <>
-          <h3 className="shoph">Card packs — {state.packCost}🪙 for 3 cards (hand {state.hand.length}/7)</h3>
+          <h3 className="shoph">Card packs — {state.packCost}🪙 for 3 cards (hand {state.hand.length}/{state.handMax})</h3>
           <div className="shopgrid packs">
             {packKinds.map((p) => (
               <button
                 key={p.kind}
                 className={"pack " + p.kind}
                 disabled={coins < state.packCost}
-                onClick={() => send({ type: "buy", pack: p.kind })}
+                onClick={() => session.buyPack(p.kind)}
               >
                 <span className="pkicon">{p.icon}</span>
                 <b>{p.label}</b>
@@ -65,7 +65,7 @@ export function ShopView({ state, send }: { state: State; send: Send }) {
 
           <h3 className="shoph">Forge templates — one copy each, first come first served</h3>
           <div className="shopgrid">
-            {state.shop.filter((t) => t.cost > 0).map((t) => (
+            {(state.shop ?? []).filter((t) => t.cost > 0).map((t) => (
               <div className={"tmpl" + (owned.has(t.id) ? " owned" : "") + (t.sold && !owned.has(t.id) ? " soldout" : "")} key={t.id}>
                 <div className="patline"><Pattern name={t.name} /></div>
                 <em className="ex">e.g. “{t.example}”</em>
@@ -76,7 +76,7 @@ export function ShopView({ state, send }: { state: State; send: Send }) {
                 ) : (
                   <button
                     disabled={coins < t.cost}
-                    onClick={() => send({ type: "buy", template: t.id })}
+                    onClick={() => session.buyTemplate(t.id)}
                   >
                     Buy — {t.cost}🪙
                   </button>
@@ -84,7 +84,7 @@ export function ShopView({ state, send }: { state: State; send: Send }) {
               </div>
             ))}
           </div>
-          <button className="forge" onClick={() => send({ type: "pass" })}>
+          <button className="forge" onClick={() => session.pass()}>
             Done shopping → +2 cards
           </button>
         </>

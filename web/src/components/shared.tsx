@@ -1,25 +1,14 @@
 import { useState, type ReactNode } from "react";
 import type { Card, FighterView, RoundEventView, State } from "./types";
 
-// ---------- shared bits ----------
-
-export function isLiteral(slot: string) {
-  return !(["adj", "noun", "verb", "adv", "pron", "prep", "conj", "inter"] as string[]).includes(slot);
-}
+// canForge / isLiteral moved to ../view — re-exported for existing imports.
+export { canForge, isLiteral } from "../view";
 
 export function nameOf(s: State, id: string): string {
   return s.players.find((p) => p.id === id)?.name ?? id;
 }
 
-// canForge mirrors the server check: can the remaining hand satisfy any owned
-// template? (Slots needing a literal are free.)
-export function canForge(state: State): boolean {
-  const counts: Record<string, number> = {};
-  for (const c of state.hand) counts[c.kind] = (counts[c.kind] ?? 0) + 1;
-  return state.templates.some((t) =>
-    t.slots.every((s) => isLiteral(s) || (counts[s] ?? 0) >= t.slots.filter((x) => x === s).length),
-  );
-}
+
 
 // Rail: vertical player strip — avatar, name, wins, coins, draft/fight status.
 export function Rail({ state }: { state: State }) {
@@ -137,7 +126,7 @@ export function BeatDeck({ events, hold, closedLabel, side }: { events: RoundEve
   if (!ev) return null;
   return (
     <>
-      <Theater src={ev.imageUrl} caption={ev.text} hold={hold} closedLabel={closedLabel ?? `painting act ${ev.round}…`} side={side} />
+      <Theater src={ev.imageUrl} caption={ev.degraded ? `${ev.text} — 📻 the judges are unreachable` : ev.text} hold={hold} closedLabel={closedLabel ?? `painting act ${ev.round}…`} side={side} />
       {events.length > 1 && (
         <div className="beatnav">
           <button className="link" disabled={cur <= 0} onClick={() => setIdx(cur - 1)}>◀ act {cur}</button>

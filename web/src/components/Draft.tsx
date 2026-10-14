@@ -1,11 +1,13 @@
 import { useEffect, useState, type CSSProperties } from "react";
 import { useNow } from "../hooks/useNow";
-import type { Send } from "../services/socket";
+import type { Session } from "../services/socket";
 import type { Card, State } from "./types";
-import { canForge, isLiteral, Pattern, ChampionCard } from "./shared";
+import { canForge, derive, isLiteral } from "../view";
+import { Pattern, ChampionCard } from "./shared";
 
-export function Draft({ state, me, send }: { state: State; me: string; send: Send }) {
-  const meP = state.players.find((p) => p.id === me);
+export function Draft({ state, me, session }: { state: State; me: string; session: Session }) {
+  const v = derive(state);
+  const meP = v.me;
   const f = state.fight;
   const isFighter = !!f && (f.a.playerId === me || f.b.playerId === me);
   const done = !!meP?.champion;
@@ -55,14 +57,14 @@ export function Draft({ state, me, send }: { state: State; me: string; send: Sen
             </>
           )}
         </div>
-        <LocationVote state={state} send={send} />
+        <LocationVote state={state} session={session} />
       </div>
     </section>
   );
 }
 
 // LocationVote: spectators pick where the fight happens. Resolved at combat start.
-function LocationVote({ state, send }: { state: State; send: Send }) {
+function LocationVote({ state, session }: { state: State; session: Session }) {
   const opts = state.locOptions ?? [];
   const f = state.fight;
   const fighting = !!f && (f.a.playerId === state.you || f.b.playerId === state.you);
@@ -82,7 +84,7 @@ function LocationVote({ state, send }: { state: State; send: Send }) {
         <button
           key={o}
           className={"loc" + (state.myVote === o ? " sel" : "")}
-          onClick={() => send({ type: "loc", loc: o })}
+          onClick={() => session.vote(o)}
         >
           <span>{o}</span>
           <b>{state.locVotes?.[o] ?? 0}</b>
@@ -108,24 +110,24 @@ function ForgeAnim({ champ }: { champ: { name: string; cards: Card[] } }) {
 }
 
 // HandDock: forge templates on top, template slots on the table, hand below.
-export function HandDock({ state, send }: { state: State; send: Send }) {
+export function HandDock({ state, session }: { state: State; session: Session }) {
   const [tmplID, setTmplID] = useState("");
   const [filled, setFilled] = useState<Record<number, Card>>({});
   const [forging, setForging] = useState(false); // forge click → server ack
-  const meP = state.players.find((p) => p.id === state.you);
+  const v = derive(state);
+  const meP = v.me;
   const drafted = !!meP?.champion;
-  const draftMode = state.phase === "draft" && !drafted
-    && !!state.fight && (state.fight.a.playerId === state.you || state.fight.b.playerId === state.you);
+  const draftMode = state.phase === "draft" && !drafted && v.isFighter;
 
-  // HandDock lives across phases — a new draft round (or the champion landing)
-  // clears the staged slots so spent cards don't linger and the forge unlocks.
-  const draftKey = state.phase === "draft" ? state.round : -1;
+  // HandDock lives across phases — any phase/round transition (or the champion
+  // landing) clears the staged slots so spent cards don't linger. phaseKey is
+  // the single reset token for this class of local UI state.
   useEffect(() => {
     setFilled({});
     setForging(false);
-  }, [draftKey, drafted]);
+  }, [v.phaseKey, drafted]);
 
-  if (!draftMode || !canForge(state)) return null; // only fighters forge
+  if (!draftMode || !v.canForge) return null; // only fighters forge
   const order: Record<string, number> = { noun: 0, pron: 1, adj: 2, verb: 3, adv: 4, prep: 5, conj: 6, inter: 7 };
   const tmpl = state.templates.find((t) => t.id === tmplID) ?? state.templates.find((t) => t.id === "adj_noun") ?? state.templates[0];
   const slots = tmpl?.slots ?? [];
@@ -188,11 +190,7 @@ export function HandDock({ state, send }: { state: State; send: Send }) {
         className="forge"
         disabled={!allFilled || forging}
         onClick={() => {
-          send({
-            type: "draft",
-            template: tmpl.id,
-            cards: slots.map((s, i) => (isLiteral(s) ? null : filled[i].id)).filter((x): x is string => !!x),
-          });
+          session.draft(tmpl.id, slots.map((s, i) => (isLiteral(s) ? null : filled[i].id)).filter((x): x is string => !!x));
           setForging(true); // cards stay staged until the champion lands
         }}
       >

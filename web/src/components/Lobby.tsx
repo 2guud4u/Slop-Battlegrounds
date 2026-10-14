@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { fetchAvatars, preconnect, type JoinOpts, type Send } from "../services/socket";
+import { fetchAvatars, preconnect, type JoinOpts, type Session } from "../services/socket";
 import type { AvatarInfo, State } from "./types";
 
 // Story levels, simplest → fanciest; keys match game.Level* on the server.
@@ -75,7 +75,7 @@ export function JoinScreen({ onJoin, error }: { onJoin: (o: JoinOpts) => void; e
   );
 }
 
-export function Lobby({ state, isHost, send }: { state: State; isHost: boolean; send: Send }) {
+export function Lobby({ state, isHost, session }: { state: State; isHost: boolean; session: Session }) {
   const [avatars, setAvatars] = useState<AvatarInfo[]>([]);
   const me = state.players.find((p) => p.id === state.you);
   const [name, setName] = useState("");
@@ -91,7 +91,7 @@ export function Lobby({ state, isHost, send }: { state: State; isHost: boolean; 
 
   const commitName = () => {
     const n = name.trim();
-    if (n && n !== me?.name) send({ type: "name", name: n });
+    if (n && n !== me?.name) session.setName(n);
   };
 
   return (
@@ -119,7 +119,7 @@ export function Lobby({ state, isHost, send }: { state: State; isHost: boolean; 
               className={"avatar" + (mine ? " sel" : "") + (locked ? " taken" : "")}
               title={locked ? `${a.name} — taken by ${owner}` : a.name}
               disabled={locked}
-              onClick={() => send({ type: "avatar", avatar: a.key })}
+              onClick={() => session.setAvatar(a.key)}
             >
               <img src={a.url} alt={a.name} />
               <span>{a.name}</span>
@@ -136,14 +136,14 @@ export function Lobby({ state, isHost, send }: { state: State; isHost: boolean; 
             className={"tchip" + (state.level === lv ? " sel" : "")}
             disabled={!isHost}
             title={isHost ? "set narration style" : "host sets this"}
-            onClick={() => send({ type: "level", message: lv })}
+            onClick={() => session.setLevel(lv)}
           >
             {label}
           </button>
         ))}
       </div>
       {isHost ? (
-        <button className="cta" disabled={state.players.length < 2} onClick={() => send({ type: "start" })}>
+        <button className="cta" disabled={state.players.length < 2} onClick={() => session.start()}>
           Start game
         </button>
       ) : (

@@ -5,3 +5,4 @@ slop-battlegrounds
 *.tsbuildinfo
 .DS_Store
 .env
+bin/

@@ -1,9 +1,14 @@
 package game
 
+import (
+	"encoding/json"
+	"time"
+)
+
 // Public/wire views. Player secrets (hand) only go to their owner; host API
 // keys never leave the Config struct.
 
-type playerView struct {
+type PlayerView struct {
 	ID        string    `json:"id"`
 	Name      string    `json:"name"`
 	Avatar    string    `json:"avatar"` // avatar key
@@ -17,30 +22,30 @@ type playerView struct {
 	HandSize  int       `json:"handSize"`
 	Ready     bool      `json:"ready"` // passed/ready in verdict+shop phases
 }
-type betView struct {
+type BetView struct {
 	BettorID string `json:"bettorId"`
 	On       string `json:"on"`
 	Amount   int    `json:"amount"`
 	Pass     bool   `json:"pass"`
 }
 
-type fighterView struct {
+type FighterView struct {
 	PlayerID  string     `json:"playerId"`
 	Name      string     `json:"name"`
 	AvatarURL string     `json:"avatarUrl"`
-	Champion  Champion   `json:"champion"`
-	Moves     []moveView `json:"moves"`
+	Champion  *Champion  `json:"champion"` // null while the fighter is still drafting
+	Moves     []MoveView `json:"moves"`
 }
 
-type moveView struct {
+type MoveView struct {
 	Round int    `json:"round"`
 	Verb  string `json:"verb"`
 	Fate  bool   `json:"fate"`
 }
 
-type fightView struct {
-	A          fighterView    `json:"a"`
-	B          fighterView    `json:"b"`
+type FightView struct {
+	A          FighterView    `json:"a"`
+	B          FighterView    `json:"b"`
 	Location   string         `json:"location"`
 	Scene      string         `json:"scene"`
 	SceneImage string         `json:"sceneImage"`
@@ -53,23 +58,26 @@ type fightView struct {
 	Verdict    *Verdict       `json:"verdict"`
 }
 
-type stateMsg struct {
-	Type      string          `json:"type"` // "state"
+type StateMsg struct {
+	Type      string          `json:"type"` // "state" (or "error" — see Message)
+	Message   string          `json:"message,omitempty"` // set when Type == "error"
 	Room      string          `json:"room"`
 	Phase     Phase           `json:"phase"`
 	Round     int             `json:"round"`
 	You       string          `json:"you"`
 	Token     string          `json:"token"` // viewer's own seat key — stored client-side for reload
 	HostID    string          `json:"hostId"`
-	Players   []playerView    `json:"players"`
+	Players   []PlayerView    `json:"players"`
 	WinnerID  string          `json:"winnerId"` // set when phase == "over"
-	Bets      []betView       `json:"bets"`
-	Fight     *fightView      `json:"fight"`
+	Bets      []BetView       `json:"bets"`
+	Fight     *FightView      `json:"fight"`
 	Hand      []Card          `json:"hand"`
 	Templates []ForgeTemplate `json:"templates"` // owned forge templates
 	Shop      []ForgeTemplate `json:"shop"`      // buyable forge templates
 	RevealAt  int64           `json:"revealAt"`  // unix ms — draft reveal ends, betting opens
 	PackCost  int             `json:"packCost"`  // coins per 3-card pack
+	HandMax   int             `json:"handMax"`   // hard cap — discard down to this
+	MinBet    int             `json:"minBet"`    // smallest spectator stake
 
 	LocOptions []string       `json:"locOptions"`
 	LocVotes   map[string]int `json:"locVotes"` // option -> tally
@@ -77,11 +85,26 @@ type stateMsg struct {
 	Level      string         `json:"level"` // narration complexity
 }
 
+// stateJSON is a pre-encoded snapshot — the pump ships immutable bytes, so a
+// broadcast can never share memory with room state the lock protects. (The
+// old SendJSON(stateMsg) path marshaled off-lock while the room mutated the
+// same Fight.Events/Fate/hand storage — a data race.)
+type stateJSON []byte
+
+func (s stateJSON) MarshalJSON() ([]byte, error) { return s, nil }
+
+
+
 // broadcastLocked pushes a personalized snapshot to every connected player.
-// Call with r.mu held.
+// Call with r.mu held — the marshal happens here, under the lock, so the
+// queued payload shares nothing with live room state.
 func (r *Room) broadcastLocked() {
 	for pid, c := range r.conns {
-		_ = c.SendJSON(r.snapshotLocked(pid))
+		b, err := json.Marshal(r.snapshotLocked(pid))
+		if err != nil {
+			continue
+		}
+		_ = c.SendJSON(stateJSON(b))
 	}
 }
 
@@ -92,8 +115,17 @@ func (r *Room) tokenLocked(pid string) string {
 	return ""
 }
 
-func (r *Room) snapshotLocked(youID string) stateMsg {
-	msg := stateMsg{
+// revealAtMs: unset deadline → 0 on the wire (a zero time marshals as a huge
+// negative unix milli otherwise — meaningless to the client).
+func revealAtMs(t time.Time) int64 {
+	if t.IsZero() {
+		return 0
+	}
+	return t.UnixMilli()
+}
+
+func (r *Room) snapshotLocked(youID string) StateMsg {
+	msg := StateMsg{
 		Level:      r.Complexity,
 		Type:       "state",
 		Room:       r.Code,
@@ -103,17 +135,19 @@ func (r *Room) snapshotLocked(youID string) stateMsg {
 		Token:      r.tokenLocked(youID),
 		HostID:     r.hostID,
 		WinnerID:   r.WinnerID,
-		RevealAt:   r.revealAt.UnixMilli(),
+		RevealAt:   revealAtMs(r.revealAt),
 		PackCost:   packCost,
-		Players:    []playerView{},
-		Bets:       []betView{},
+		HandMax:    handMax,
+		MinBet:     minBet,
+	Players:    []PlayerView{},
+	Bets:       []BetView{},
 		Hand:       []Card{},
 		LocOptions: r.locOptions,
 		LocVotes:   map[string]int{},
 		MyVote:     r.locVotes[youID],
 	}
 	for _, p := range r.players {
-		msg.Players = append(msg.Players, playerView{
+		msg.Players = append(msg.Players, PlayerView{
 			ID:        p.ID,
 			Name:      p.Name,
 			Avatar:    p.Avatar,
@@ -143,7 +177,7 @@ func (r *Room) snapshotLocked(youID string) stateMsg {
 		msg.Shop = stock
 	}
 	for _, b := range r.bets {
-		msg.Bets = append(msg.Bets, betView{
+		msg.Bets = append(msg.Bets, BetView{
 			BettorID: b.BettorID,
 			On:       b.On,
 			Amount:   b.Amount,
@@ -154,27 +188,21 @@ func (r *Room) snapshotLocked(youID string) stateMsg {
 		msg.LocVotes[v]++
 	}
 	if r.fight != nil {
-		moves := func(pid string) []moveView {
-			out := []moveView{}
+		moves := func(pid string) []MoveView {
+			out := []MoveView{}
 			for _, m := range r.fight.Moves {
 				if m.PlayerID == pid {
-					out = append(out, moveView{Round: m.Round, Verb: m.Verb, Fate: m.Fate})
+				out = append(out, MoveView{Round: m.Round, Verb: m.Verb, Fate: m.Fate})
 				}
 			}
 			return out
 		}
-		fv := &fightView{Verdict: r.fight.Verdict, Location: r.fight.Location, Scene: r.fight.Scene, SceneImage: r.fight.SceneImage, Round: r.fight.Round, Fate: r.fight.Fate, Resolving: r.fight.Resolving, Events: append([]RoundEvent{}, r.fight.Events...), Draw: r.fight.Draw, MyOptions: r.fight.Options[youID]}
+		fv := &FightView{Verdict: r.fight.Verdict, Location: r.fight.Location, Scene: r.fight.Scene, SceneImage: r.fight.SceneImage, Round: r.fight.Round, Fate: r.fight.Fate, Resolving: r.fight.Resolving, Events: append([]RoundEvent{}, r.fight.Events...), Draw: r.fight.Draw, MyOptions: r.fight.Options[youID]}
 		if a := r.findLocked(r.fight.A); a != nil {
-			fv.A = fighterView{PlayerID: a.ID, Name: a.Name, AvatarURL: AvatarURL(a.Avatar), Moves: moves(a.ID)}
-			if a.Champion != nil {
-				fv.A.Champion = *a.Champion
-			}
+			fv.A = FighterView{PlayerID: a.ID, Name: a.Name, AvatarURL: AvatarURL(a.Avatar), Moves: moves(a.ID), Champion: a.Champion}
 		}
 		if b := r.findLocked(r.fight.B); b != nil {
-			fv.B = fighterView{PlayerID: b.ID, Name: b.Name, AvatarURL: AvatarURL(b.Avatar), Moves: moves(b.ID)}
-			if b.Champion != nil {
-				fv.B.Champion = *b.Champion
-			}
+			fv.B = FighterView{PlayerID: b.ID, Name: b.Name, AvatarURL: AvatarURL(b.Avatar), Moves: moves(b.ID), Champion: b.Champion}
 		}
 		msg.Fight = fv
 	}

@@ -79,13 +79,13 @@ func (h *Hub) serveWS(w http.ResponseWriter, r *http.Request) {
 	t0 := time.Now()
 	var jm JoinMsg
 	if err := wsjson.Read(ctx, conn, &jm); err != nil || jm.Type != "join" {
-		_ = wsjson.Write(ctx, conn, game.ClientMsg{Type: "error", Message: "expected join {room?}"})
+		_ = wsjson.Write(ctx, conn, game.StateMsg{Type: "error", Message: "expected join {room?}"})
 		conn.Close(websocket.StatusProtocolError, "bad join")
 		return
 	}
 	room, err := h.room(jm)
 	if err != nil {
-		_ = wsjson.Write(ctx, conn, game.ClientMsg{Type: "error", Message: err.Error()})
+		_ = wsjson.Write(ctx, conn, game.StateMsg{Type: "error", Message: err.Error()})
 		conn.Close(websocket.StatusProtocolError, err.Error())
 		return
 	}
@@ -94,7 +94,7 @@ func (h *Hub) serveWS(w http.ResponseWriter, r *http.Request) {
 	playerID, err := room.Join(jm.Name, jm.Avatar, jm.Token, c)
 	log.Printf("room %s: %s joined in %v", room.Code, jm.Name, time.Since(t0))
 	if err != nil {
-		_ = wsjson.Write(ctx, conn, game.ClientMsg{Type: "error", Message: err.Error()})
+		_ = wsjson.Write(ctx, conn, game.StateMsg{Type: "error", Message: err.Error()})
 		conn.Close(websocket.StatusProtocolError, err.Error())
 		return
 	}

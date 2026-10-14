@@ -13,7 +13,22 @@ export interface JoinOpts {
   imageKey?: string;
 }
 
-export type Send = (msg: Record<string, unknown>) => void;
+// Session is the room's client protocol: one typed verb per game action.
+// Components speak verbs, never wire shapes — the JSON field names live here.
+export interface Session {
+  start(): void;
+  draft(template: string, cards: string[]): void;
+  bet(on: string, amount: number): void;
+  verb(verb: string): void;
+  pass(): void;
+  buyPack(kind: string): void;
+  buyTemplate(id: string): void;
+  discard(cardId: string): void;
+  vote(loc: string): void;
+  setName(name: string): void;
+  setAvatar(key: string): void;
+  setLevel(level: string): void;
+}
 
 // The join screen pre-opens the socket so clicking Create/Join costs one
 // message instead of a TCP + upgrade handshake first.
@@ -30,13 +45,13 @@ export function preconnect() {
 }
 
 // Connect sends the join message on the warm socket (or a fresh one), and
-// calls back with every state update. Returns a send function.
+// calls back with every state update. Returns the session's verbs.
 export function connect(
   opts: JoinOpts,
   onState: (s: State) => void,
   onError: (msg: string) => void,
   onClose: () => void,
-): Send {
+): Session {
   const reuse = warm && warm.readyState <= WebSocket.OPEN;
   const ws = reuse ? warm! : new WebSocket(wsURL());
   warm = null; // one join per socket — the server closes it on a failed join
@@ -55,7 +70,24 @@ export function connect(
   ws.onclose = () => onClose();
   ws.onerror = () => onError("connection failed");
 
-  return (msg) => ws.readyState === WebSocket.OPEN && ws.send(JSON.stringify(msg));
+  const send = (msg: Record<string, unknown>) => {
+    if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify(msg));
+  };
+
+  return {
+    start: () => send({ type: "start" }),
+    draft: (template, cards) => send({ type: "draft", template, cards }),
+    bet: (on, amount) => send({ type: "bet", on, amount }),
+    verb: (verb) => send({ type: "verb", verb }),
+    pass: () => send({ type: "pass" }),
+    buyPack: (pack) => send({ type: "buy", pack }),
+    buyTemplate: (template) => send({ type: "buy", template }),
+    discard: (card) => send({ type: "discard", card }),
+    vote: (loc) => send({ type: "loc", loc }),
+    setName: (name) => send({ type: "name", name }),
+    setAvatar: (avatar) => send({ type: "avatar", avatar }),
+    setLevel: (level) => send({ type: "level", level }),
+  };
 }
 
 // Avatar list is static — start fetching at page load (and warm the image

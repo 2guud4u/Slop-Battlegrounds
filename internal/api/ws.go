@@ -37,7 +37,7 @@ func newWSClient(conn *websocket.Conn, ctx context.Context) *wsClient {
 // is behind. Errors always attempt delivery first.
 func (c *wsClient) SendJSON(v any) error {
 	q := queuedMsg{v: v, droppable: true}
-	if cm, ok := v.(game.ClientMsg); ok && cm.Type == "error" {
+	if cm, ok := v.(game.StateMsg); ok && cm.Type == "error" {
 		q.droppable = false // errors must reach the client
 	}
 	select {

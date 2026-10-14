@@ -268,11 +268,12 @@ func (r *Room) maybeAdvanceLocked() {
 			r.revealAt = time.Now().Add(5 * time.Second)
 			r.fight.Location = r.winningLocationLocked() // votes so far — scene gen can start
 			r.genSceneLocked()                           // paint during the reveal, not after
-			gen := r.gen
-			time.AfterFunc(time.Until(r.revealAt), func() {
-				r.mu.Lock()
-				defer r.mu.Unlock()
-				if r.gen != gen || r.Phase != PhaseDraft {
+			deadline := r.revealAt
+			after(r, func() (struct{}, bool) {
+				time.Sleep(time.Until(deadline))
+				return struct{}{}, true
+			}, func(struct{}) {
+				if r.Phase != PhaseDraft {
 					return
 				}
 				r.maybeAdvanceLocked()
@@ -345,37 +346,31 @@ func (r *Room) maybeAdvanceLocked() {
 func (r *Room) resolveRoundLocked() {
 	f := r.fight
 	f.Resolving = true
-	gen := r.gen
 	round := f.Round
 	a, b := r.findLocked(f.A), r.findLocked(f.B)
 	movesA := movesInRound(f, f.A, round)
 	movesB := movesInRound(f, f.B, round)
 	fateA := f.Fate[f.A] == round
 	fateB := f.Fate[f.B] == round
-	go func() {
-		req := JudgeRequest{
-			A: *a.Champion, B: *b.Champion, AID: f.A, BID: f.B,
-			MovesA: movesA, MovesB: movesB, FateA: fateA, FateB: fateB, Location: f.Location,
-			History: eventHistory(f), Level: r.Complexity,
-			Round: round, LastRound: round == 3,
-		}
+	req := JudgeRequest{
+		A: *a.Champion, B: *b.Champion, AID: f.A, BID: f.B,
+		MovesA: movesA, MovesB: movesB, FateA: fateA, FateB: fateB, Location: f.Location,
+		History: eventHistory(f), Level: r.Complexity,
+		Round: round, LastRound: round == 3,
+	}
+	after(r, func() (*RoundEvent, bool) {
 		ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
-		ev, err := r.judge.Round(ctx, req)
-		cancel()
-		if err != nil || ev == nil {
-			log.Printf("room %s: round %d judge failed (%v), using fallback", r.Code, round, err)
-			ev = fallbackRound(f, a.Champion, b.Champion, movesA, movesB, round)
-		}
-		ev.Round = round
-		r.mu.Lock()
-		defer r.mu.Unlock()
-		if r.gen != gen || r.fight != f {
+		defer cancel()
+		ev, _ := r.judge.Round(ctx, req) // resilient: degraded beats carry a flag
+		return ev, true
+	}, func(ev *RoundEvent) {
+		if r.fight != f {
 			return
 		}
 		f.Events = append(f.Events, *ev)
 		idx := len(f.Events) - 1
 		if ev.Text != "" {
-			go r.genImage(eventPrompt(ev.Text), f.SceneImage, func(url string) {
+			r.genImage(eventPrompt(ev.Text), f.SceneImage, func(url string) {
 				if r.fight == f && idx < len(f.Events) && f.Events[idx].ImageURL == "" {
 					f.Events[idx].ImageURL = url
 					r.broadcastLocked()
@@ -398,7 +393,7 @@ func (r *Room) resolveRoundLocked() {
 			r.genOptionsLocked() // fresh options for the new round
 		}
 		r.broadcastLocked()
-	}()
+	})
 }
 
 func (r *Room) payoutLocked(winnerID string) {
