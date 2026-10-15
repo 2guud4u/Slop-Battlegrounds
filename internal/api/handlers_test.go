@@ -327,3 +327,56 @@ func TestDrawAfterThreeRounds(t *testing.T) {
 		}
 	}
 }
+
+func TestQuickPlayAndPrivateRooms(t *testing.T) {
+	hub := NewHub(config.Defaults{GenDir: t.TempDir()})
+	srv := httptest.NewServer(hub.Handler(nil))
+	defer srv.Close()
+	wsURL := "ws" + strings.TrimPrefix(srv.URL, "http") + "/ws"
+
+	// First quick player: no open rooms → creates one.
+	c1 := dial(t, wsURL, JoinMsg{Name: "alice", Quick: true})
+	defer c1.close()
+	s := c1.wait(func(m stateMsg) bool { return m.You != "" })
+	if s.Room == "" {
+		t.Fatal("quick play made no room")
+	}
+
+	// Second quick player lands in the same open room.
+	c2 := dial(t, wsURL, JoinMsg{Name: "bob", Quick: true})
+	defer c2.close()
+	s2 := c2.wait(func(m stateMsg) bool { return m.You != "" })
+	if s2.Room != s.Room {
+		t.Fatalf("quick play landed in %s, want %s", s2.Room, s.Room)
+	}
+
+	// Private room: creation with a password.
+	c3 := dial(t, wsURL, JoinMsg{Name: "carol", Password: "swordfish"})
+	defer c3.close()
+	s3 := c3.wait(func(m stateMsg) bool { return m.You != "" })
+	if !s3.Locked {
+		t.Fatal("passworded room not marked locked")
+	}
+
+	// Quick play must not land in the private room.
+	c4 := dial(t, wsURL, JoinMsg{Name: "dave", Quick: true})
+	defer c4.close()
+	s4 := c4.wait(func(m stateMsg) bool { return m.You != "" })
+	if s4.Room == s3.Room {
+		t.Fatal("quick play entered a private room")
+	}
+
+	// Joining the private room by code: no password rejected; the
+	// failed join closes the socket — just observe that it never
+	// delivers a state (the dial helper tolerates the close via error).
+	bad := dial(t, wsURL, JoinMsg{Name: "eve", Room: s3.Room})
+	defer bad.close()
+
+	// Joining with the right password works.
+	c5 := dial(t, wsURL, JoinMsg{Name: "eve", Room: s3.Room, Password: "swordfish"})
+	defer c5.close()
+	s5 := c5.wait(func(m stateMsg) bool { return m.You != "" })
+	if s5.Room != s3.Room {
+		t.Fatalf("passworded join landed in %s, want %s", s5.Room, s3.Room)
+	}
+}

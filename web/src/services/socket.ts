@@ -3,6 +3,8 @@ import type { AvatarInfo, State } from "../components/types";
 export interface JoinOpts {
   room?: string;
   name: string;
+  quick?: boolean;   // find-or-create: land in any open room
+  password?: string; // sets the room password (create) or supplies it (join)
   avatar?: string;
   token?: string; // seat key from a previous session
   llmProvider?: string;
@@ -28,6 +30,7 @@ export interface Session {
   setName(name: string): void;
   setAvatar(key: string): void;
   setLevel(level: string): void;
+  lock(password: string): void; // empty clears — host only, lobby only
 }
 
 // The join screen pre-opens the socket so clicking Create/Join costs one
@@ -87,6 +90,7 @@ export function connect(
     setName: (name) => send({ type: "name", name }),
     setAvatar: (avatar) => send({ type: "avatar", avatar }),
     setLevel: (level) => send({ type: "level", level }),
+    lock: (password) => send({ type: "lock", password }),
   };
 }
 

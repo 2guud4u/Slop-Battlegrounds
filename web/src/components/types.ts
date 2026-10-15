@@ -116,4 +116,5 @@ export interface State {
   locOptions: string[] | null;
   locVotes: Record<string, number>;
   myVote: string;
+  locked: boolean; // room has a password — private
 }

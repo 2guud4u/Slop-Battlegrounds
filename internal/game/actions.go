@@ -62,6 +62,15 @@ func (r *Room) levelLocked(playerID, level string) {
 	}
 }
 
+// lockLocked: host-only, lobby-only — set or clear the room password. The
+// host's bound connection is the authority; no password re-entry needed.
+func (r *Room) lockLocked(playerID, password string) {
+	if r.Phase != PhaseLobby || playerID != r.hostID {
+		return
+	}
+	r.Password = password
+}
+
 func (r *Room) startLocked(playerID string) {
 	if r.Phase != PhaseLobby {
 		r.sendErr(playerID, "game already started")

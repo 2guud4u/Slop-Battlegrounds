@@ -523,6 +523,8 @@ input {
 .beatnav { display: flex; align-items: center; justify-content: center; gap: 14px; margin: 6px 0; }
 .beatnav .link { font-size: 0.75rem; }
 .lvlrow { display: flex; align-items: center; justify-content: center; gap: 6px; margin: 10px 0; }
+.lockrow { display: flex; align-items: center; justify-content: center; gap: 8px; margin: 10px 0; }
+.cta.quick { margin-top: 6px; }
 
 /* bell countdown + champion's cards on the table */
 .bellcd {

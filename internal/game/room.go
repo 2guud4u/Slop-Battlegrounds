@@ -48,6 +48,7 @@ type ClientMsg struct {
 	Loc      string   `json:"loc"`      // battleground vote (draft phase)
 	Level    string   `json:"level"`    // host: narration complexity
 	Card     string   `json:"card"`     // shop: discard this card id
+	Password string   `json:"password"` // host: set/clear room password (empty clears)
 }
 
 type Room struct {
@@ -73,6 +74,10 @@ type Room struct {
 
 	judge  Judge
 	imager Imager
+
+	// Password: empty = open room. Plaintext like everything else in this
+	// codebase — ws isn't TLS'd here, a hash buys nothing.
+	Password string
 }
 
 func New(code string, j Judge, img Imager) *Room {
@@ -92,8 +97,10 @@ func New(code string, j Judge, img Imager) *Room {
 
 // Join adds (or reconnects) a player. A matching seat token reclaims that
 // seat in any phase; otherwise a same-name match does (legacy/manual rejoin).
+// Reclaims skip the room password — the token is the credential. Fresh joins
+// to a private room need the right password.
 // Returns the player ID; the seat token reaches the client in its snapshot.
-func (r *Room) Join(name, avatar, token string, c Client) (string, error) {
+func (r *Room) Join(name, avatar, token, password string, c Client) (string, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
@@ -119,6 +126,10 @@ func (r *Room) Join(name, avatar, token string, c Client) (string, error) {
 		r.conns[seat.ID] = c
 		r.broadcastLocked()
 		return seat.ID, nil
+	}
+	// Fresh join past this point — a private room demands the password.
+	if r.Password != "" && password != r.Password {
+		return "", fmt.Errorf("wrong password for %s", r.Code)
 	}
 	if r.Phase != PhaseLobby {
 		return "", fmt.Errorf("game already in progress")
@@ -200,6 +211,14 @@ func (r *Room) expireSeat(playerID string) {
 	r.maybeAdvanceLocked()
 	r.broadcastLocked()
 }
+// IsOpen: an open room still in lobby with a free seat — the Quick Play
+// target. Thread-safe: the hub scans rooms under its own lock.
+func (r *Room) IsOpen() bool {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return r.Phase == PhaseLobby && r.Password == "" && len(r.players) < 8
+}
+
 
 func (r *Room) Players() []*Player {
 	r.mu.Lock()
@@ -231,6 +250,8 @@ func (r *Room) Handle(playerID string, m ClientMsg) {
 		r.locVoteLocked(playerID, m.Loc)
 	case "level":
 		r.levelLocked(playerID, m.Level)
+	case "lock":
+		r.lockLocked(playerID, m.Password)
 	case "pass":
 		r.passLocked(playerID)
 	case "buy":

@@ -40,6 +40,11 @@ Server-level env: `GROQ_API_KEY`, `POLLINATION_API_KEY`, `GEMINI_API_KEY`, `CF_A
 Cloudflare keys on the join screen — they apply to that room only,
 are held in memory, and are never sent to other clients.
 
+**Rooms:** share the 4-letter code to invite. **Quick Play** lands you in any
+open room still in lobby (or creates one). Set a password on the join screen
+or as host in the lobby — private rooms are invisible to Quick Play, fresh
+joins need code + password, seat-token rejoins don't.
+
 ## Game loop
 
 `lobby → draft → betting → combat → verdict → (shop, once everyone's fought) → draft …`

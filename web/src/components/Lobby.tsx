@@ -13,6 +13,7 @@ const LEVELS = [
 
 export function JoinScreen({ onJoin, error }: { onJoin: (o: JoinOpts) => void; error: string }) {
   const [room, setRoom] = useState("");
+  const [password, setPassword] = useState("");
   const [showKeys, setShowKeys] = useState(false);
   const [joining, setJoining] = useState(false);
   const [llmKey, setLlmKey] = useState("");
@@ -43,6 +44,7 @@ export function JoinScreen({ onJoin, error }: { onJoin: (o: JoinOpts) => void; e
             onJoin({
               name: "",
               room: room.trim() || undefined,
+              password: password || undefined,
               llmKey: llmKey.trim() || undefined,
               imageKey: geminiKey.trim() || undefined,
               imageAccount: cfAccount.trim() || undefined,
@@ -51,6 +53,7 @@ export function JoinScreen({ onJoin, error }: { onJoin: (o: JoinOpts) => void; e
           }}
         >
           <input placeholder="Room code (empty = create)" value={room} onChange={(e) => setRoom(e.target.value)} autoFocus />
+          <input placeholder="Password (private room — optional)" value={password} onChange={(e) => setPassword(e.target.value)} />
           <button type="button" className="link" onClick={() => setShowKeys(!showKeys)}>
             {showKeys ? "▾ hide" : "▸"} host API keys (optional)
           </button>
@@ -68,6 +71,18 @@ export function JoinScreen({ onJoin, error }: { onJoin: (o: JoinOpts) => void; e
           <button type="submit" disabled={joining}>
             {joining ? (room.trim() ? "Joining room…" : "Creating room…") : room.trim() ? "Join room" : "Create room"}
           </button>
+          <button
+            type="button"
+            className="cta quick"
+            disabled={joining}
+            onClick={() => {
+              if (joining) return;
+              setJoining(true);
+              onJoin({ name: "", quick: true });
+            }}
+          >
+            {joining ? "Finding a table…" : "⚡ Quick Play"}
+          </button>
         </form>
         {error && <p className="err">{error}</p>}
       </div>
@@ -79,6 +94,7 @@ export function Lobby({ state, isHost, session }: { state: State; isHost: boolea
   const [avatars, setAvatars] = useState<AvatarInfo[]>([]);
   const me = state.players.find((p) => p.id === state.you);
   const [name, setName] = useState("");
+  const [pw, setPw] = useState("");
   const taken: Record<string, string> = {};
   for (const p of state.players) if (p.avatar) taken[p.avatar] = p.name;
 
@@ -92,6 +108,11 @@ export function Lobby({ state, isHost, session }: { state: State; isHost: boolea
   const commitName = () => {
     const n = name.trim();
     if (n && n !== me?.name) session.setName(n);
+  };
+
+  const commitLock = () => {
+    session.lock(pw); // empty clears — room goes open again
+    setPw("");
   };
 
   return (
@@ -142,6 +163,22 @@ export function Lobby({ state, isHost, session }: { state: State; isHost: boolea
           </button>
         ))}
       </div>
+      {isHost && (
+        <div className="lockrow">
+          {state.locked && <span title="private room">🔒</span>}
+          <input
+            className="namein"
+            placeholder={state.locked ? "Change password (blank = open room)" : "Set a password — private room"}
+            value={pw}
+            onChange={(e) => setPw(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && commitLock()}
+          />
+          <button className="tchip" onClick={commitLock} disabled={!pw && !state.locked}>
+            {state.locked ? (pw ? "Change" : "Unlock") : "Lock"}
+          </button>
+        </div>
+      )}
+      {!isHost && state.locked && <p className="sub">🔒 private room — invite by code + password</p>}
       {isHost ? (
         <button className="cta" disabled={state.players.length < 2} onClick={() => session.start()}>
           Start game

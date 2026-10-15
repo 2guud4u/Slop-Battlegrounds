@@ -32,7 +32,7 @@ func testRoom(t *testing.T, n int) (*Room, []string) {
 	r := New("test", stubJudge{}, stubImager{})
 	var ids []string
 	for i := 0; i < n; i++ {
-		id, err := r.Join("p"+string(rune('a'+i)), "av", "", stubClient{})
+		id, err := r.Join("p"+string(rune('a'+i)), "av", "", "", stubClient{})
 		if err != nil {
 			t.Fatalf("join: %v", err)
 		}
@@ -246,14 +246,14 @@ func TestReloadReclaimsSeatMidGame(t *testing.T) {
 	hand := len(p.Hand)
 	r.Phase = PhaseCombat // joins by strangers are refused now
 
-	id, err := r.Join("", "", p.Token, &namedClient{"reloaded"})
+	id, err := r.Join("", "", p.Token, "", &namedClient{"reloaded"})
 	if err != nil || id != ids[0] {
 		t.Fatalf("token rejoin = %q, %v; want %q", id, err, ids[0])
 	}
 	if len(p.Hand) != hand || !p.Connected {
 		t.Fatalf("seat state lost: hand %d→%d connected=%v", hand, len(p.Hand), p.Connected)
 	}
-	if _, err := r.Join("", "", "bogus", &namedClient{}); err == nil {
+	if _, err := r.Join("", "", "bogus", "", &namedClient{}); err == nil {
 		t.Fatal("unknown token must not get a seat mid-game")
 	}
 }
@@ -263,7 +263,7 @@ func TestStaleSocketCloseKeepsNewConnection(t *testing.T) {
 	p := r.findLocked(ids[0])
 	old, fresh := &namedClient{"old"}, &namedClient{"new"}
 	r.conns[p.ID] = old
-	if _, err := r.Join("", "", p.Token, fresh); err != nil {
+	if _, err := r.Join("", "", p.Token, "", fresh); err != nil {
 		t.Fatal(err)
 	}
 	r.Leave(p.ID, old) // the pre-reload socket finally closes
@@ -273,5 +273,55 @@ func TestStaleSocketCloseKeepsNewConnection(t *testing.T) {
 	r.expireSeat(p.ID) // grace timer firing must not drop a live seat
 	if !p.Connected {
 		t.Fatal("seat dropped while a connection is attached")
+	}
+}
+
+func TestPrivateRoomJoins(t *testing.T) {
+	r, ids := testRoom(t, 1)
+	r.Password = "swordfish"
+
+	if _, err := r.Join("stranger", "", "", "", stubClient{}); err == nil {
+		t.Fatal("no password into a private room")
+	}
+	if _, err := r.Join("stranger", "", "", "wrong", stubClient{}); err == nil {
+		t.Fatal("wrong password into a private room")
+	}
+	if _, err := r.Join("stranger", "", "", "swordfish", stubClient{}); err != nil {
+		t.Fatalf("right password refused: %v", err)
+	}
+
+	if r.IsOpen() {
+		t.Fatal("private room reports open")
+	}
+
+	// Seat token reclaims skip the password entirely.
+	p := r.findLocked(ids[0])
+	if _, err := r.Join("", "", p.Token, "", stubClient{}); err != nil {
+		t.Fatalf("token reclaim hit the password gate: %v", err)
+	}
+}
+
+func TestLockHostAndLobbyOnly(t *testing.T) {
+	r, ids := testRoom(t, 2)
+	host, other := ids[0], ids[1]
+
+	r.lockLocked(other, "nope")
+	if r.Password != "" {
+		t.Fatal("non-host set the password")
+	}
+	r.lockLocked(host, "swordfish")
+	if r.Password != "swordfish" {
+		t.Fatal("host lock not applied")
+	}
+
+	r.Phase = PhaseCombat
+	r.lockLocked(host, "")
+	if r.Password != "swordfish" {
+		t.Fatal("lock applied outside lobby")
+	}
+	r.Phase = PhaseLobby
+	r.lockLocked(host, "")
+	if r.Password != "" {
+		t.Fatal("unlock didn't clear")
 	}
 }

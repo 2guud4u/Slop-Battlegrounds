@@ -82,7 +82,8 @@ type StateMsg struct {
 	LocOptions []string       `json:"locOptions"`
 	LocVotes   map[string]int `json:"locVotes"` // option -> tally
 	MyVote     string         `json:"myVote"`
-	Level      string         `json:"level"` // narration complexity
+	Level      string         `json:"level"`  // narration complexity
+	Locked     bool           `json:"locked"` // room has a password — private
 }
 
 // stateJSON is a pre-encoded snapshot — the pump ships immutable bytes, so a
@@ -139,6 +140,7 @@ func (r *Room) snapshotLocked(youID string) StateMsg {
 		PackCost:   packCost,
 		HandMax:    handMax,
 		MinBet:     minBet,
+		Locked:     r.Password != "",
 	Players:    []PlayerView{},
 	Bets:       []BetView{},
 		Hand:       []Card{},

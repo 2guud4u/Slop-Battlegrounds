@@ -20,7 +20,9 @@ import (
 // JoinMsg is the first message a client must send on the socket.
 type JoinMsg struct {
 	Type          string `json:"type"` // "join"
-	Room          string `json:"room"` // empty = create a new room
+	Room          string `json:"room"` // empty = create a new room (or Quick Play picks)
+	Quick         bool   `json:"quick"` // find-or-create: land in any open room in lobby
+	Password      string `json:"password"` // sets the room password (creation) or supplies it (join)
 	Name          string `json:"name"`
 	Avatar        string `json:"avatar"`        // avatar key from /api/avatars
 	Token         string `json:"token"`         // seat key from a previous session — reclaims the seat
@@ -91,7 +93,7 @@ func (h *Hub) serveWS(w http.ResponseWriter, r *http.Request) {
 	}
 	c := newWSClient(conn, ctx)
 	go c.pump()
-	playerID, err := room.Join(jm.Name, jm.Avatar, jm.Token, c)
+	playerID, err := room.Join(jm.Name, jm.Avatar, jm.Token, jm.Password, c)
 	log.Printf("room %s: %s joined in %v", room.Code, jm.Name, time.Since(t0))
 	if err != nil {
 		_ = wsjson.Write(ctx, conn, game.StateMsg{Type: "error", Message: err.Error()})
@@ -118,7 +120,15 @@ func (h *Hub) serveWS(w http.ResponseWriter, r *http.Request) {
 func (h *Hub) room(jm JoinMsg) (*game.Room, error) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
-	if jm.Room != "" {
+	if jm.Quick {
+		// Quick Play: find an open room still in lobby with a free seat.
+		for _, rm := range h.rooms {
+			if rm.IsOpen() {
+				return rm, nil
+			}
+		}
+		// None found — fall through and create one below.
+	} else if jm.Room != "" {
 		if rm, ok := h.rooms[jm.Room]; ok {
 			return rm, nil
 		}
@@ -129,6 +139,7 @@ func (h *Hub) room(jm JoinMsg) (*game.Room, error) {
 	judge := resolveJudge(jm, h.def)
 	imager := resolveImager(jm, h.def)
 	rm := game.New(code, judge, imager)
+	rm.Password = jm.Password // empty on quick play — the room it lands in stays open
 	h.rooms[code] = rm
 	log.Printf("room %s created (llm=%T image=%T)", code, judge, imager)
 	return rm, nil
