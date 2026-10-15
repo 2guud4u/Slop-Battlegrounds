@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { connect, type JoinOpts, type Session } from "../services/socket";
 import type { State } from "./types";
-import { Rail } from "./shared";
+import { Rail, Billing } from "./shared";
 import { derive } from "../view";
 import { JoinScreen, Lobby } from "./Lobby";
 import { Draft, HandDock } from "./Draft";
@@ -31,6 +31,14 @@ export default function App() {
   const sessionRef = useRef<Session | null>(null);
   const [joined, setJoined] = useState(false);
   const [rejoining, setRejoining] = useState(() => !!savedSeat());
+  // Handoff: the outgoing draft table stays mounted a beat after the phase
+  // flips so it can slide away while its cards fly up into the incoming TV.
+  const [handoff, setHandoff] = useState<State | null>(null);
+  useEffect(() => {
+    if (!handoff) return;
+    const t = setTimeout(() => setHandoff(null), 2000);
+    return () => clearTimeout(t);
+  }, [handoff]);
 
   const join = (opts: JoinOpts) => {
     setErr("");
@@ -38,7 +46,15 @@ export default function App() {
       opts,
       (s) => {
         sessionStorage.setItem(SEAT_KEY, JSON.stringify({ room: s.room, token: s.token }));
-        setState(s);
+        setState((prev) => {
+          // Keep the outgoing draft alive a beat: force its reveal back into
+          // the "throw" stage so the played cards are still on the table when
+          // the pane slides away and they fly up into the incoming TV.
+          if (prev && prev.phase === "draft" && s.phase !== "draft" && prev.fight) {
+            setHandoff({ ...prev, revealAt: Date.now() + 5000 });
+          }
+          return s;
+        });
         setJoined(true);
         setRejoining(false);
       },
@@ -75,6 +91,17 @@ export default function App() {
     <div className={"app" + (THEMED_LEVELS.has(state.level) ? " " + state.level : state.phase === "lobby" ? " backdrop" : "")}>
       <header>
         <h1>⚔️ Slop Battlegrounds</h1>
+        {inFight && state.fight && (
+          <Billing
+            state={state}
+            center={
+              <span className="billact">
+                {state.phase === "verdict" ? "Verdict" : `Act ${state.fight.round} of 3`}
+                {state.fight.location && <small>📍 {state.fight.location}</small>}
+              </span>
+            }
+          />
+        )}
         <span className="badge">
           room <b>{state.room}</b> · round {state.round} · {state.phase}
         </span>
@@ -89,6 +116,11 @@ export default function App() {
           {state.phase === "verdict" && <VerdictView state={state} session={session} />}
           {state.phase === "shop" && <ShopView state={state} session={session} />}
           {state.phase === "over" && <GameOver state={state} />}
+          {handoff && (
+            <div className="handoff" aria-hidden="true">
+              <Draft state={handoff} me={handoff.you} session={session} />
+            </div>
+          )}
         </main>
       </div>
       <HandDock state={state} session={session} />

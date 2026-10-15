@@ -69,11 +69,11 @@ export function ChampionCard({ champ, label, hero }: { champ: { name: string; ca
   );
 }
 
-// Theater: the fight is a play. A gold proscenium frames the generated image;
-// velvet curtains stay shut until the image has actually decoded (or while the
-// judges deliberate), then part. Narration runs under the stage; `side` (the
-// fighter's moves, the verdict) sits in the wings to the right of it and is
-// told whether the curtain is up, so the next act's cue waits for the image.
+// Theater: the fight is a broadcast. A wood-console CRT hangs over the table
+// on chains; while the judges work (`hold`, or the image hasn't decoded) the
+// screen is static + a PLEASE STAND BY placard. When the art lands it zaps on
+// like a channel switch. Narration runs under the TV; `side` (the fighter's
+// moves, the verdict) sits beneath and is told whether the broadcast is live.
 export function Theater({
   src,
   caption,
@@ -84,28 +84,32 @@ export function Theater({
   src?: string;
   caption?: string;
   closedLabel: string;
-  hold?: boolean; // force the curtains shut (judges scoring, etc.)
-  side?: (curtainUp: boolean) => ReactNode;
+  hold?: boolean; // force static (judges scoring, etc.)
+  side?: (broadcasting: boolean) => ReactNode;
 }) {
   const [loadedSrc, setLoadedSrc] = useState("");
   const open = !!src && loadedSrc === src && !hold;
   return (
-    <div className={"theater" + (side ? " withside" : "")}>
+    <div className="theater">
       <div className="stagecol">
-        <div className="proscenium">
-          <div className="valance" />
-          <div className="stageview">
+        <div className="cabinet">
+          <div className="screen">
             {src && <img key={src} src={src} alt="" onLoad={() => setLoadedSrc(src)} />}
-            <div className={"curtain left" + (open ? " open" : "")} />
-            <div className={"curtain right" + (open ? " open" : "")} />
+            <div className={"tvsnow" + (open ? " off" : "")} />
             {!open && (
-              <div className="curtaincall">
-                <span className="spot">🎭</span>
+              <div className="standby">
+                <b>PLEASE STAND BY</b>
                 <span>{closedLabel}</span>
               </div>
             )}
+            {open && <span className="tvbug">SLOP·TV</span>}
           </div>
-          <div className="footlights" />
+          <div className="tvpanel">
+            <div className="knob" />
+            <span className="chnum">CH 3</span>
+            <div className="knob small" />
+            <div className="speaker" />
+          </div>
         </div>
         {caption && (
           <div className="apron">
@@ -118,15 +122,15 @@ export function Theater({
   );
 }
 
-// BeatDeck: one beat at a time on the theater stage, with prev/next.
-export function BeatDeck({ events, hold, closedLabel, side }: { events: RoundEventView[]; hold?: boolean; closedLabel?: string; side?: (curtainUp: boolean) => ReactNode }) {
+// BeatDeck: one beat at a time on the TV, with prev/next.
+export function BeatDeck({ events, hold, closedLabel, side }: { events: RoundEventView[]; hold?: boolean; closedLabel?: string; side?: (onair: boolean) => ReactNode }) {
   const [idx, setIdx] = useState(-1); // -1 = latest
   const cur = idx === -1 || idx >= events.length ? events.length - 1 : idx;
   const ev = events[cur];
   if (!ev) return null;
   return (
     <>
-      <Theater src={ev.imageUrl} caption={ev.degraded ? `${ev.text} — 📻 the judges are unreachable` : ev.text} hold={hold} closedLabel={closedLabel ?? `painting act ${ev.round}…`} side={side} />
+      <Theater src={ev.imageUrl} caption={ev.degraded ? `${ev.text} — 📻 the judges are unreachable` : ev.text} hold={hold} closedLabel={closedLabel ?? `filming act ${ev.round}…`} side={side} />
       {events.length > 1 && (
         <div className="beatnav">
           <button className="link" disabled={cur <= 0} onClick={() => setIdx(cur - 1)}>◀ act {cur}</button>

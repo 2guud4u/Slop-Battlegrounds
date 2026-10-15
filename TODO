@@ -38,6 +38,8 @@ after forge confirmed if waiting for other player, move those cards above your c
 
 
 
+need to make the llm generate text that is more readable and understandable especially the actiojs
+
 my-server-app/
 ├── cmd/
 │   └── server/

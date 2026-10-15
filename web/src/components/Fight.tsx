@@ -1,7 +1,7 @@
 import { useState } from "react";
 import type { Session } from "../services/socket";
 import type { State } from "./types";
-import { BeatDeck, Billing, FighterCard, nameOf, Theater } from "./shared";
+import { BeatDeck, FighterCard, nameOf, Theater } from "./shared";
 import { derive } from "../view";
 
 export function Betting({ state, you, session }: { state: State; you: string; session: Session }) {
@@ -18,7 +18,7 @@ export function Betting({ state, you, session }: { state: State; you: string; se
     <section className="pane">
       <h2>Betting</h2>
       {f.location && <p className="locbanner">📍 {f.location}</p>}
-      <Theater src={f.sceneImage} caption={f.scene} closedLabel={f.scene ? "the stagehands are painting the set…" : "the judges are writing the opening act…"} />
+      <Theater src={f.sceneImage} caption={f.scene} closedLabel={f.scene ? "the broadcast is warming up…" : "the judges are writing the opening act…"} />
       <div className="arena">
         <FighterCard f={f.a} />
         <div className="vs">VS</div>
@@ -57,14 +57,14 @@ export function Combat({ state, session }: { state: State; session: Session }) {
   const scoring = `the judges are scoring act ${f.round}…`;
 
   // What sits in the wings — the fighter's hand of moves, or a stage note.
-  // The next act's moves wait in the wings until the curtain rises on the
-  // freshly painted scene.
-  const wings = (curtainUp: boolean) => (
+  // The next act's moves wait in the wings until the broadcast comes on —
+  // the TV is static while the scene is being generated.
+  const wings = (onair: boolean) => (
     <>
-      {!f.resolving && isFighter && !acted && !curtainUp && (
-        <p className="cue">🎭 Places — your cue comes when the curtain rises…</p>
+      {!f.resolving && isFighter && !acted && !onair && (
+        <p className="cue">🎭 Places — your cue comes when we're on air…</p>
       )}
-      {!f.resolving && isFighter && !acted && curtainUp && (
+      {!f.resolving && isFighter && !acted && onair && (
         <>
           <p className="cue">
             {f.myOptions && f.myOptions.length > 0
@@ -93,10 +93,6 @@ export function Combat({ state, session }: { state: State; session: Session }) {
 
   return (
     <section className="pane battle">
-      <Billing
-        state={state}
-        center={<span className="billact">Act {f.round} of 3{f.location && <small>📍 {f.location}</small>}</span>}
-      />
       <div className="bstage">
         {hasBeats ? (
           <BeatDeck events={f.events} hold={f.resolving} closedLabel={f.resolving ? scoring : undefined} side={wings} />
@@ -105,7 +101,7 @@ export function Combat({ state, session }: { state: State; session: Session }) {
             src={f.sceneImage}
             caption={f.scene}
             hold={f.resolving}
-            closedLabel={f.resolving ? scoring : f.scene ? "the stagehands are painting the set…" : "the judges are writing the opening act…"}
+            closedLabel={f.resolving ? scoring : f.scene ? "the broadcast is warming up…" : "the judges are writing the opening act…"}
             side={wings}
           />
         )}
@@ -126,10 +122,6 @@ export function VerdictView({ state, session }: { state: State; session: Session
 
   return (
     <section className="pane battle">
-      <Billing
-        state={state}
-        center={<span className="billact">Verdict{f.location && <small>📍 {f.location}</small>}</span>}
-      />
       <div className="bstage">
         <BeatDeck
           events={f.events}
@@ -137,7 +129,7 @@ export function VerdictView({ state, session }: { state: State; session: Session
             v
               ? () => (
                   <div className="verdict">
-                    {f.draw ? <h3>🤝 Draw!</h3> : <h3>🏆 {winnerName} wins!</h3>}
+                    {f.draw ? <h3>🤝 Draw!</h3> : <h3><span className="winnerband">🏆 {winnerName} WINS</span></h3>}
                     <p>{v.reason}</p>
                     <button className="cta" disabled={meReady} onClick={() => session.pass()}>
                       {meReady ? "Waiting for others…" : "Continue →"}

@@ -1,5 +1,5 @@
-/* Theme: a darkened theater house hosting a high-stakes card table — velvet
-   stage curtains, gilt trim, green felt, ivory cards, casino chips. */
+/* Theme: a darkened casino pit hosting a high-stakes card table — a hung CRT
+   broadcasting the fight, green felt, ivory cards, casino chips. */
 :root {
   color-scheme: dark;
   font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
@@ -8,7 +8,11 @@
   --gold: #e8c46a;
   --gold-deep: #b8862e;
   --felt: #235c3c;
+  --felt-dark: #14432b;
+  --felt-glow: #2e7a50;
   --ivory: #fffdf4;
+  --wood: #2b1608;
+  --wood-light: #4a2e1e;
   --serif: Georgia, "Times New Roman", serif;
 }
 * { box-sizing: border-box; }
@@ -37,16 +41,20 @@ b { color: #ffe1a8; }
   flex-direction: column;
 }
 header {
-  display: flex;
-  align-items: baseline;
-  justify-content: center;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
   gap: 12px;
-  padding: 10px 18px 6px;
-  flex-wrap: wrap;
+  padding: 8px 18px 4px;
 }
+header .badge { justify-self: end; }
 header h1 { font-size: 1.25rem; letter-spacing: 0.5px; }
-.badge { color: #cdb68a; font-size: 0.85rem; }
-.badge b { color: #ffd166; }
+.badge {
+  color: var(--gold); font-size: 0.8rem;
+  border: 1px solid #7a5c22; border-radius: 999px; padding: 4px 14px;
+  background: #00000066;
+}
+.badge b { color: var(--ivory); }
 
 .frame {
   flex: 1;
@@ -112,12 +120,45 @@ header h1 { font-size: 1.25rem; letter-spacing: 0.5px; }
   flex: 1;
   min-width: 0;
   min-height: 0;
+  position: relative;
   overflow-y: auto;
-  /* rail is 200px; right padding = 200 + 18 − 18 so board centers exactly */
-  padding: 6px 218px 14px 18px;
+  /* rail is 200px; right padding = 200 + 18 − 18 so board centers exactly.
+     Top 20px gives the cage badge and rail inlay room to breathe. */
+  padding: 20px 218px 14px 18px;
 }
 @media (max-width: 1180px) { .stage { padding-right: 18px; } }
 .stage.fight { overflow: hidden; } /* battle uses its own scroll column */
+.stage:has(.handoff) { overflow: hidden; }
+
+/* ---------- phase handoff: the real draft table leaves, cards fly into the TV ----------
+   When a phase starts, App keeps the outgoing draft snapshot mounted as a
+   .handoff clone over the incoming pane. The pane slides off the table area;
+   every card on it lifts and converges up toward the screen, and the TV drops
+   in on top of them — the cards land "inside" the broadcast. */
+.handoff {
+  position: absolute; inset: 0; z-index: 30;
+  overflow: hidden;
+  padding: 20px 218px 14px 18px; /* same frame as .stage */
+}
+.handoff > .pane {
+  height: 100%;
+  animation: tableleave 0.95s cubic-bezier(0.55, 0, 0.8, 0.4) 0.25s both;
+}
+@keyframes tableleave {
+  0%   { transform: none; opacity: 1; }
+  100% { transform: translateY(118%); opacity: 0.9; }
+}
+.handoff .card {
+  animation: cardintv 0.85s cubic-bezier(0.4, 0, 0.6, 0.6) 0.35s both !important;
+}
+.handoff .card:nth-child(even) { animation-delay: 0.42s !important; }
+@keyframes cardintv {
+  0%   { opacity: 1; }
+  100% { transform: translateY(-120vh) scale(0.4) rotate(28deg); opacity: 0.4; }
+}
+
+/* incoming broadcast drops in over the departing cards */
+.stage:has(.handoff) .theater { animation: tvin 0.85s cubic-bezier(0.2, 0.9, 0.3, 1.05) 0.55s both; }
 
 .pane {
   max-width: 980px;
@@ -133,17 +174,49 @@ header h1 { font-size: 1.25rem; letter-spacing: 0.5px; }
   border-radius: 120px / 80px;
   min-height: 100%;
   text-align: center;
+  position: relative;
+}
+.pane::before { /* brass rail inlay */
+  content: ""; position: absolute; inset: 6px; border-radius: inherit;
+  border: 2px dashed #e8c46a44; pointer-events: none;
 }
 .pane.battle {
-  /* no house backdrop — the room's background shows around the theater */
+  /* the fight is a broadcast — no felt under the TV; during a phase handoff
+     the outgoing draft pane itself plays the table-slide (see .handoff) */
   background: none;
   border: none;
   border-radius: 0;
   box-shadow: none;
-  text-align: left;
+  outline: none;
+  text-align: center;
   padding: 8px 0 12px;
   max-width: 1180px;
+  overflow: hidden;
+  display: flex; flex-direction: column; justify-content: center;
 }
+/* the versus marquee lives in the header during a fight — slim one-liner */
+header .billing { margin: 0; }
+header .billing .bill { padding: 2px 10px; border-radius: 10px; }
+header .billing .av.big { width: 24px; height: 24px; }
+header .billing .billtext small, header .billing .lastmove { display: none; }
+header .billing .billtext b { font-size: 0.9rem; }
+header .billing .vsmedal { width: 30px; height: 30px; font-size: 0.8rem; }
+header .billing .billcenter { max-width: 170px; }
+header .billing .billact { flex-direction: row; gap: 6px; font-size: 0.74rem; }
+header .billing .billact small { font-size: 0.68rem; }
+.pane.battle::before { content: none; } /* no brass inlay on the broadcast */
+.pane.battle::after { /* ghost watermark under the broadcast */
+  content: "MAIN EVENT"; position: absolute; left: 50%; top: 50%;
+  transform: translate(-50%,-50%); z-index: 0;
+  color: #ffffff10; font-size: 15px; letter-spacing: 8px; text-transform: uppercase;
+  font-family: system-ui; font-weight: 200; pointer-events: none; white-space: nowrap;
+}
+@keyframes tvin {
+  0%   { transform: translateY(-115%); }
+  70%  { transform: translateY(2.5%); }
+  100% { transform: none; }
+}
+.pane.battle > * { position: relative; z-index: 1; }
 
 /* ---------- join: the box office ---------- */
 /* sticker-bomb wall: landing (join) and lobby share it */
@@ -356,8 +429,13 @@ input {
   flex-direction: column;
   align-items: center;
   gap: 6px;
-  padding: 8px 12px 10px;
-  background: linear-gradient(180deg, transparent, rgba(13,13,19,.9) 30%);
+  padding: 10px 12px 12px;
+  /* the felt rail the hand rests on */
+  background:
+    linear-gradient(180deg, var(--wood) 0 6px, transparent 6px),
+    radial-gradient(ellipse 90% 160% at 50% 120%, var(--felt) 0%, var(--felt-dark) 85%);
+  border-top: 2px solid var(--wood-light);
+  box-shadow: inset 0 14px 30px #00000066;
 }
 .dock .forge {
   background: linear-gradient(160deg, #ffd166, #f0a840);
@@ -372,13 +450,16 @@ input {
 .dock.forging .forge { background: linear-gradient(160deg, #ff8a3d, #e06a1a); }
 .hand {
   display: flex;
-  gap: 8px;
+  gap: 0;
   align-items: flex-end;
   max-width: 100%;
   overflow-x: auto;
-  padding: 10px 6px 4px;
+  padding: 12px 14px 6px;
   perspective: 800px;
 }
+/* held-hand fan: slight overlap, every card's word stays readable */
+.hand .card { margin-left: -12px; }
+.hand .card:first-child { margin-left: 0; }
 .card {
   width: 104px;
   height: 132px;
@@ -448,7 +529,7 @@ input {
 .staged .hint { color: #8a7f66; font-size: 0.8rem; font-style: italic; }
 .slot { display: flex; flex-direction: column; align-items: center; gap: 2px; }
 .card.ontable {
-  width: 96px; height: 58px;
+  width: 84px; height: 118px;
   font-size: 0.72rem;
   rotate: 0deg;
   border-color: #ffd166;
@@ -488,7 +569,7 @@ input {
 
 /* empty slot on the table — a card-shaped outline tinted by its kind */
 .slotph {
-  width: 96px; height: 58px;
+  width: 84px; height: 118px;
   display: flex; align-items: center; justify-content: center;
   font-size: 0.62rem; font-weight: 800; letter-spacing: 0.8px; text-transform: uppercase;
   border: 2px dashed #9a7a4a; border-radius: 8px;
@@ -503,20 +584,10 @@ input {
 .slotph.conj  { border-color: #8a5ac0; color: #c08fff; }
 .slotph.inter { border-color: #d83a7a; color: #ff7ab0; }
 .lit { align-self: center; font-style: italic; color: #c9bd9d; font-size: 0.9rem; padding: 0 2px; }
-.tmpl.soldout { opacity: 0.45; border-style: dashed; }
-.soldtag { color: #b0304a; font-weight: 800; font-size: 0.75rem; letter-spacing: 1px; text-transform: uppercase; }
 .hand.discard .card { border-color: #b0304a; }
 .hand.discard .card:hover:not(.dead) { box-shadow: 0 10px 20px rgba(0,0,0,.55), 0 0 0 3px #b0304a, inset 0 0 0 4px #fffdf4; }
 /* shop */
 .shopgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; margin: 12px 0; }
-.tmpl {
-  display: flex; flex-direction: column; gap: 6px; align-items: center;
-  padding: 12px; border: 1px solid #7a5418; border-radius: 12px; background: #1c1712;
-}
-.tmpl .pat { color: #ffd166; font-size: 0.85rem; }
-.tmpl .ex { font-size: 0.72rem; color: #9a8f7a; text-align: center; }
-.tmpl.owned { border-color: #2a6a4a; }
-.ownedtag { color: #3a9a6a; font-weight: 700; font-size: 0.8rem; }
 .coins.big { font-size: 1.2rem; font-weight: 800; color: #ffd166; text-align: center; }
 
 /* beat slideshow + level picker */
@@ -617,95 +688,197 @@ input {
   padding: 8px 14px; margin: 4px 0;
   background: #1c1712; border: 1px solid #7a5418; border-radius: 10px;
 }
-.standings li.first { border-color: #ffd166; background: #3a2e1a; }
-.standings li .sub { margin-left: auto; }
-
-/* card packs in the shop */
+/* ---------- shop: the cage ---------- */
+.pane.cage {
+  border: 8px solid var(--wood); border-radius: 14px;
+  background:
+    repeating-linear-gradient(90deg, transparent 0 78px, #b8862e22 78px 80px), /* brass bars */
+    linear-gradient(180deg, #191008, #120a05);
+  box-shadow: inset 0 0 60px #000000aa, 0 20px 50px #000000aa;
+}
+.pane.cage::before {
+  content: "CAGE"; inset: auto; top: -13px; left: 50%; transform: translateX(-50%);
+  border: none; border-radius: 4px;
+  background: var(--wood); color: var(--gold); letter-spacing: 10px; font-size: 11px;
+  padding: 3px 8px 3px 18px; font-family: system-ui; z-index: 1;
+}
 .shoph { font-size: 0.85rem; color: #cfc4a8; margin: 16px 0 8px; text-align: left; }
-.shopgrid.packs { display: flex; flex-wrap: wrap; gap: 8px; }
+.shopgrid.packs { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; }
 .pack {
-  display: flex; flex-direction: column; align-items: center; gap: 2px;
-  padding: 10px 14px; min-width: 96px;
-  background: #1c1712; border: 1px solid #7a5418; border-radius: 10px;
+  display: flex; flex-direction: column; align-items: center; gap: 7px;
+  padding: 12px 16px 10px; min-width: 96px;
+  background: #00000044; border: 1px solid #ffffff22; border-radius: 10px;
   color: #fff;
 }
-.pack .pkicon { font-size: 1.4rem; }
-.pack small { color: #b0a88f; }
-.pack:hover:not(:disabled) { border-color: #ffd166; }
+.pack:hover:not(:disabled) { border-color: var(--gold); }
 .pack:disabled { opacity: 0.45; }
-
-/* ---------- theater: proscenium + curtains + apron ---------- */
-/* stage + wings side by side. The stage (16:9) is sized from viewport height
-   so stage, narration and the side column all fit without page scroll. */
-.theater { width: 100%; margin: 0 auto; display: flex; justify-content: center; align-items: flex-start; gap: 16px; }
-.stagecol { width: min(100%, 82vh, 860px); flex-shrink: 1; min-width: 0; display: flex; flex-direction: column; }
-.proscenium {
-  position: relative; width: 100%;
-  padding: 26px 18px 0;
-  border-radius: 18px 18px 6px 6px;
-  /* gilded frame */
-  background:
-    linear-gradient(180deg, #e8c46a 0%, #b8862e 18%, #7a5418 55%, #b8862e 85%, #e8c46a 100%);
-  box-shadow:
-    inset 0 0 0 2px #fff2b855, inset 0 0 0 7px #5a3a10,
-    0 18px 40px rgba(0,0,0,.6), 0 0 60px #ffd16622;
+.pack small { color: #9a8a6a; font-size: 0.62rem; letter-spacing: 1px; text-transform: uppercase; }
+.pack .pkprice { color: var(--gold); font-size: 0.8rem; }
+/* the pack: a little fan of card backs, kind-colored edge on the top card */
+.packstack { position: relative; width: 46px; height: 58px; }
+.packstack .mini {
+  position: absolute; width: 34px; height: 47px; border-radius: 4px;
+  background: repeating-linear-gradient(45deg, #5a1010 0 5px, #6d1515 5px 10px);
+  border: 3px solid var(--ivory); box-shadow: 0 2px 4px #00000088;
 }
-.valance {
-  position: absolute; left: 10px; right: 10px; top: 8px; height: 30px; z-index: 4;
-  border-radius: 0 0 50% 50% / 0 0 100% 100%;
-  background:
-    radial-gradient(circle at 50% -20%, transparent 58%, #3d0710 60%) 0 0 / 64px 30px repeat-x,
-    linear-gradient(180deg, #a3142c, #6e0a1c);
-  box-shadow: 0 6px 12px rgba(0,0,0,.55);
-  border-bottom: 3px solid #e8c46a;
+.packstack .mini:nth-child(1) { left: 0; top: 8px; transform: rotate(-10deg); }
+.packstack .mini:nth-child(2) { left: 6px; top: 4px; transform: rotate(0deg); }
+.packstack .mini:nth-child(3) { left: 12px; top: 0; transform: rotate(10deg); border-bottom-color: var(--pk, var(--ivory)); }
+.packstack .count {
+  position: absolute; right: -4px; bottom: -2px; z-index: 2;
+  background: var(--gold); color: #1a0f08; font-size: 0.62rem; font-weight: 700;
+  border-radius: 999px; padding: 1px 6px; box-shadow: 0 2px 4px #00000088;
 }
-.stageview {
-  position: relative; overflow: hidden;
-  aspect-ratio: 16 / 9;
-  background: radial-gradient(ellipse at 50% 20%, #2a1a14, #0a0605 75%);
-  border-radius: 4px 4px 0 0;
-  box-shadow: inset 0 0 40px rgba(0,0,0,.9);
+/* forge templates hang in the cage window as clipped vouchers */
+.vouchers { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 12px; }
+.voucher {
+  position: relative; border-radius: 4px; border: 1px solid #b7a06c;
+  background: linear-gradient(170deg, #efe6c8, #e0d3ae);
+  color: #2a1c0c; padding: 14px 14px 12px;
+  box-shadow: 0 6px 14px #00000066;
+  clip-path: polygon(0 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%);
 }
-.stageview img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
-/* velvet curtain halves: vertical folds + gold fringe, swag open to the sides */
-.curtain {
-  position: absolute; top: 0; bottom: 0; width: 51%; z-index: 2;
-  background:
-    linear-gradient(90deg, rgba(0,0,0,.45) 0%, transparent 7%, rgba(255,255,255,.07) 12%, transparent 17%) 0 0 / 11% 100%,
-    linear-gradient(180deg, #b0182f 0%, #85101f 45%, #5a0914 100%);
-  transition: transform 1.25s cubic-bezier(0.65, 0, 0.25, 1), border-radius 1.25s ease;
+.voucher .pat { color: #2a1c0c; font-size: 0.85rem; }
+.voucher .kchip { border-color: currentColor; background: none; }
+.voucher .ex { font-size: 0.72rem; font-style: italic; color: #6a5330; text-align: center; }
+.voucher .price {
+  position: absolute; top: 8px; right: 10px; font-size: 0.72rem;
+  border: 1px dashed #2a1c0c88; border-radius: 999px; padding: 2px 9px;
 }
-.curtain.left  { left: 0;  transform-origin: 0 0;   box-shadow: inset -12px 0 18px rgba(0,0,0,.55), inset 0 -6px 0 #d9a93f; }
-.curtain.right { right: 0; transform-origin: 100% 0; box-shadow: inset 12px 0 18px rgba(0,0,0,.55), inset 0 -6px 0 #d9a93f; }
-.curtain.left.open  { transform: scaleX(0.14); border-bottom-right-radius: 100% 35%; }
-.curtain.right.open { transform: scaleX(0.14); border-bottom-left-radius: 100% 35%; }
-.curtaincall {
-  position: absolute; inset: 0; z-index: 3;
-  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px;
-  color: #ffe9b8; font-style: italic; font-size: 0.9rem; text-shadow: 0 2px 6px #000;
-  background: radial-gradient(ellipse 30% 45% at 50% 55%, #ffe9a833, transparent 70%); /* spotlight */
+.voucher button { margin-top: 8px; width: 100%; }
+.voucher.owned { box-shadow: inset 0 0 0 2px #2a6a4a, 0 6px 14px #00000066; }
+.voucher .ownedtag { color: #1e6a44; font-weight: 700; font-size: 0.8rem; }
+.voucher .soldtag { color: #8a1f1f; font-weight: 800; font-size: 0.75rem; letter-spacing: 1px; text-transform: uppercase; }
+.voucher.soldout { filter: grayscale(.7) brightness(.9); }
+.voucher.soldout::after {
+  content: "SOLD"; position: absolute; top: 40%; left: 50%; transform: translate(-50%,-50%) rotate(-14deg);
+  color: #8a1f1f; font-size: 1.6rem; font-weight: 800; letter-spacing: 4px;
+  border: 3px solid #8a1f1f; padding: 2px 12px; border-radius: 4px; opacity: .85;
   pointer-events: none;
 }
-.curtaincall .spot { font-size: 2.2rem; animation: sway 2.4s ease-in-out infinite; }
-@keyframes sway { 0%,100% { transform: rotate(-6deg); } 50% { transform: rotate(6deg); } }
-.footlights {
-  height: 14px; margin: 0 -18px;
-  border-radius: 0 0 6px 6px;
+.bankroll { display: flex; align-items: center; justify-content: center; gap: 10px; font-size: 1.1rem; color: var(--gold); }
+
+/* the verdict band across the felt */
+.winnerband {
+  display: inline-block;
+  background: linear-gradient(90deg, transparent, var(--gold-deep), transparent);
+  color: #1a0f08; font-size: 1.1rem; padding: 8px 40px; border-radius: 3px;
+  font-weight: 800; letter-spacing: 2px; text-shadow: none;
+}
+
+/* ---------- the broadcast: a wood-console CRT hung over the table ---------- */
+/* stage on the left, wings (moves / verdict) as a column to its right. The
+   16:9 screen is sized from viewport height so the row fits without scroll. */
+.theater { width: 100%; margin: 0 auto; display: flex; flex-direction: row; align-items: center; justify-content: center; gap: 18px; padding-top: 12px; }
+.stagecol { position: relative; width: min(100%, calc(177.8vh - 760px), 800px); flex-shrink: 1; min-width: 0; display: flex; flex-direction: column; }
+/* brass chains — the TV hangs off the top of the screen, sportsbook style */
+.stagecol::before, .stagecol::after {
+  content: ""; position: absolute; top: -40px; width: 5px; height: 40px;
   background:
-    radial-gradient(circle, #fff5c8 0 2px, #ffcf5a 3px, transparent 6px) 0 50% / 28px 14px repeat-x,
-    linear-gradient(180deg, #3b2417, #1e120b);
-  box-shadow: 0 -8px 18px #ffcf5a33;
+    repeating-linear-gradient(180deg, var(--gold-deep) 0 6px, #6b4a12 6px 12px);
+  box-shadow: 1px 0 0 #00000088;
+}
+.stagecol::before { left: 16%; transform: rotate(7deg); transform-origin: bottom; }
+.stagecol::after { right: 16%; transform: rotate(-7deg); transform-origin: bottom; }
+/* the cabinet: walnut console, screen on top, controls below */
+.cabinet {
+  position: relative; width: 100%;
+  padding: 22px 22px 14px;
+  border-radius: 14px;
+  background:
+    repeating-linear-gradient(90deg, #4a2e1e 0 18px, #3b2417 18px 21px),
+    linear-gradient(180deg, #4a2e1e, #2b1608);
+  box-shadow:
+    inset 0 0 0 2px #6b4a12, inset 0 3px 0 #8a6a3a44,
+    0 22px 50px rgba(0,0,0,.75), 0 0 70px #e8c46a14;
+}
+.screen {
+  position: relative; overflow: hidden;
+  aspect-ratio: 16 / 9;
+  background: #0a0806;
+  border-radius: 12px / 16px; /* slight CRT bulge */
+  box-shadow:
+    inset 0 0 60px rgba(0,0,0,.85),
+    inset 0 0 0 6px #1c110a,
+    0 0 0 3px #120a05;
+}
+/* curved-glass treatment sits over every pixel inside */
+.screen::after {
+  content: ""; position: absolute; inset: 0; z-index: 6; pointer-events: none;
+  background:
+    repeating-linear-gradient(180deg, #ffffff08 0 1px, transparent 1px 3px), /* scanlines */
+    radial-gradient(ellipse 70% 40% at 30% 0%, #ffffff12 0%, transparent 60%), /* glare */
+    radial-gradient(ellipse at 50% 50%, transparent 55%, rgba(0,0,0,.5) 100%); /* vignette */
+}
+.screen img {
+  position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover;
+  animation: zap 0.5s cubic-bezier(0.3, 0.9, 0.4, 1) both; /* channel-switch flicker */
+}
+@keyframes zap {
+  0%   { transform: scaleY(0.004) scaleX(1.4); filter: brightness(6); }
+  40%  { transform: scaleY(1.02) scaleX(1); filter: brightness(2.2); }
+  70%  { transform: none; filter: brightness(0.7); }
+  100% { transform: none; filter: none; }
+}
+/* the static: animated gray snow until the broadcast comes in */
+.tvsnow {
+  position: absolute; inset: -60px; z-index: 2;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='240' height='240'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix type='saturate' values='0'/></filter><rect width='240' height='240' filter='url(%23n)' opacity='0.62'/></svg>");
+  animation: snow 0.42s steps(6) infinite;
+}
+.tvsnow.off { animation: none; opacity: 0; transition: opacity 0.15s; }
+@keyframes snow {
+  0% { transform: translate(0, 0); }
+  20% { transform: translate(-28px, 14px); }
+  40% { transform: translate(22px, -30px); }
+  60% { transform: translate(-14px, -18px); }
+  80% { transform: translate(30px, 22px); }
+  100% { transform: translate(0, 0); }
+}
+/* the placard through the snow */
+.standby {
+  position: absolute; left: 50%; top: 50%; transform: translate(-50%,-50%); z-index: 4;
+  display: flex; flex-direction: column; align-items: center; gap: 8px;
+  background: #0a0806cc; border: 1px solid #7a5c22; border-radius: 6px;
+  padding: 14px 30px; text-align: center; pointer-events: none;
+}
+.standby b { color: var(--gold); font-family: var(--serif); font-size: 1rem; letter-spacing: 3px; }
+.standby span { color: #cdbd9c; font-style: italic; font-size: 0.8rem; max-width: 280px; }
+/* network bug, lower right */
+.tvbug {
+  position: absolute; right: 14px; bottom: 10px; z-index: 7;
+  font-family: system-ui; font-size: 0.6rem; font-weight: 800; letter-spacing: 2px;
+  color: #ffffffcc; background: #00000055; border-radius: 3px; padding: 2px 7px;
+}
+/* controls under the screen: knobs + speaker grille */
+.tvpanel {
+  display: flex; align-items: center; gap: 12px;
+  margin-top: 12px; padding: 0 6px;
+}
+.knob {
+  width: 26px; height: 26px; border-radius: 50%; flex: none;
+  background: radial-gradient(circle at 35% 30%, #8a6a3a, #4a2e1e 60%, #241305);
+  box-shadow: 0 2px 5px #000000aa, inset 0 1px 0 #ffffff22;
+}
+.knob.small { width: 18px; height: 18px; }
+.chnum { font-family: var(--serif); font-size: 0.8rem; color: var(--gold); letter-spacing: 2px; flex: none; }
+.speaker {
+  flex: 1; height: 22px;
+  background: repeating-linear-gradient(90deg, #1a0d06 0 4px, #4a2e1e 4px 7px);
+  border-radius: 4px; box-shadow: inset 0 2px 4px #000000aa;
 }
 .playbill {
   max-width: 720px; margin: 0 auto; padding: 0 4px;
   font-family: Georgia, "Times New Roman", serif; font-size: 0.95rem; line-height: 1.55;
   color: #efe4c8; text-align: center;
+  /* narrations can run long — scroll inside the apron rather than pushing
+     the TV column past the fold */
+  max-height: 6.2em; overflow-y: auto;
   opacity: 0.5; transition: opacity 0.6s ease 0.8s;
 }
-.playbill.lit { opacity: 1; }
 /* apron: the lip of the stage — narration only */
 .apron {
-  width: 100%; padding: 12px 16px 14px;
+  width: 100%; padding: 8px 14px 10px;
   background:
     repeating-linear-gradient(90deg, #3a2213 0 46px, #331d11 46px 48px),
     #3a2213;
@@ -713,20 +886,16 @@ input {
   box-shadow: inset 0 12px 20px rgba(0,0,0,.6), 0 10px 24px rgba(0,0,0,.6);
   text-align: center;
 }
-/* wings: right-hand column beside the stage — moves / verdict */
+/* wings: right-hand column beside the TV — moves / verdict stack vertically */
 .wings {
-  width: 230px; flex-shrink: 0;
-  max-height: calc(100vh - 170px); overflow-y: auto;
-  padding: 12px;
-  background: linear-gradient(180deg, rgba(26,14,9,.92), rgba(14,8,5,.92));
-  border: 2px solid var(--gold-deep); border-radius: 14px;
-  box-shadow: inset 0 0 0 3px #150a07, 0 12px 30px rgba(0,0,0,.6);
+  width: 232px; flex-shrink: 0;
+  padding: 0 4px;
   text-align: center;
 }
-.wings .acts { flex-direction: column; flex-wrap: nowrap; align-items: stretch; gap: 8px; }
-.wings .acts .opt { width: 100%; min-height: 64px; padding: 16px 12px 10px; }
-.wings .acts .opt:hover:not(:disabled) { transform: translateX(-6px) rotate(-1deg); }
-.cue { margin: 0 0 10px; color: #ffe1a8; font-size: 0.86rem; font-style: italic; letter-spacing: 0.2px; }
+.wings .acts { flex-direction: column; flex-wrap: nowrap; }
+.wings .acts .opt { width: 100%; min-height: 68px; }
+.wings .acts .opt:hover:not(:disabled) { transform: translateY(-8px) rotate(-1deg); }
+.cue { margin: 0 0 6px; color: #ffe1a8; font-size: 0.82rem; font-style: italic; letter-spacing: 0.2px; }
 /* moves: laid out like playing cards on the apron */
 .acts { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; }
 .acts .opt {
@@ -745,7 +914,7 @@ input {
 .acts .opt.fate { color: #ffe9b8; background: repeating-linear-gradient(45deg, #3a2466 0 6px, #2a1a4d 6px 12px); border-color: #ffd16688; box-shadow: 0 5px 10px rgba(0,0,0,.5), inset 0 0 0 3px #ffd16688; }
 .acts .opt.fate::before { content: "♦"; color: #ffd166; }
 .acts .opt.fate:hover:not(:disabled) { background: repeating-linear-gradient(45deg, #4a2e80 0 6px, #34205e 6px 12px); }
-@media (prefers-reduced-motion: reduce) { .curtain { transition-duration: 0.01s; } }
+@media (prefers-reduced-motion: reduce) { .tvsnow { animation: none; } .screen img, .pane.battle::before, .battle .theater { animation-duration: 0.01s; } }
 
 /* ---------- arena / fighters ---------- */
 .locbanner { color: #ffd166; font-weight: 700; font-size: 0.92rem; }
@@ -775,29 +944,29 @@ input {
 }
 /* billing marquee: A — VS — B, mirrored around a gold medallion */
 .billing {
-  width: min(100%, calc(82vh + 246px), 1106px); /* spans stage + wings */
+  width: min(100%, 82vh, 860px); /* matches the stage below it */
   display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 14px;
-  margin: 2px 0 10px;
+  margin: 0 0 6px;
 }
 .billcenter { display: flex; flex-direction: column; align-items: center; gap: 4px; max-width: 200px; }
 .billact { display: flex; flex-direction: column; align-items: center; font-family: var(--serif); color: var(--gold); font-size: 0.86rem; font-weight: 700; line-height: 1.2; text-align: center; }
 .billact small { font-family: system-ui, sans-serif; font-weight: 600; font-size: 0.7rem; color: #cdb68a; }
 .bill {
   display: flex; align-items: center; gap: 10px; min-width: 0;
-  padding: 8px 14px;
+  padding: 4px 12px;
   background: linear-gradient(180deg, #1c0e0a, #0e0705);
   border: 1px solid #5a3a1c; border-radius: 12px;
   box-shadow: inset 0 0 0 1px #00000088, 0 4px 12px rgba(0,0,0,.5);
 }
 .bill.me { border-color: var(--gold); box-shadow: 0 0 14px #e8c46a33, inset 0 0 0 1px #00000088; }
 .bill.b { flex-direction: row-reverse; text-align: right; }
-.bill .av.big { width: 42px; height: 42px; flex-shrink: 0; }
+.bill .av.big { width: 34px; height: 34px; flex-shrink: 0; }
 .billtext { display: flex; flex-direction: column; min-width: 0; line-height: 1.25; }
 .billtext small { color: #b8a27c; font-size: 0.72rem; }
 .billtext b { font-family: var(--serif); font-size: 1.02rem; color: #ffe6b0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .lastmove { font-size: 0.74rem; color: #d8c49c; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .vsmedal {
-  width: 54px; height: 54px; border-radius: 50%;
+  width: 44px; height: 44px; border-radius: 50%;
   display: flex; align-items: center; justify-content: center;
   font-family: var(--serif); font-weight: 900; font-size: 1.15rem; color: #2a1a04;
   background: radial-gradient(circle at 35% 30%, #fff0b0, #e8c46a 45%, #9a6a1e);
@@ -853,12 +1022,7 @@ input {
   .avatar { width: 76px; padding: 6px; }
   .avatar img { width: 44px; height: 44px; }
 
-  /* wings drop under the stage */
-  .theater { flex-direction: column; align-items: center; }
-  .stagecol { width: 100%; }
-  .wings { width: 100%; max-height: none; }
-  .wings .acts { flex-direction: row; flex-wrap: wrap; }
-  .wings .acts .opt { width: calc(50% - 4px); }
+  /* mobile keeps the same centered wings layout */
   /* billing wraps: names shrink, medallion stays centered */
   .billing { gap: 6px; }
   .bill { padding: 6px 8px; gap: 6px; }
@@ -866,16 +1030,17 @@ input {
   .billtext b { font-size: 0.82rem; }
   .vsmedal { width: 40px; height: 40px; font-size: 0.9rem; }
   .playbill { font-size: 0.84rem; }
-  .stageview { aspect-ratio: 16 / 10; }
-  .proscenium { padding: 20px 10px 0; }
-  .footlights { margin: 0 -10px; }
+  .cabinet { padding: 12px 12px 8px; }
+  .theater { padding-top: 52px; flex-direction: column; gap: 8px; }
+  .stagecol::before, .stagecol::after { top: -52px; height: 52px; }
+  .wings { width: 100%; max-width: 520px; }
+  .wings .acts { flex-direction: row; flex-wrap: wrap; }
   .acts .opt { width: calc(50% - 5px); min-height: 72px; }
-
+  .hand .card { margin-left: -8px; }
   /* cards shrink and the dock hugs the bottom */
   .card { width: 84px; height: 110px; font-size: 0.68rem; padding: 6px; }
   .card::before, .card::after { font-size: 0.5rem; }
   .dock { padding: 6px 4px 8px; }
-  .hand { gap: 5px; }
 }
 @media (max-width: 420px) {
   .card { width: 72px; height: 98px; font-size: 0.62rem; }
